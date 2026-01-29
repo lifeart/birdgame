@@ -20,7 +20,15 @@ const STATIC_ASSETS = [
     '/js/network.js',
     '/js/progression.js',
     '/js/rewards.js',
-    '/manifest.json'
+    '/manifest.json',
+    '/icons/icon-72.png',
+    '/icons/icon-96.png',
+    '/icons/icon-128.png',
+    '/icons/icon-144.png',
+    '/icons/icon-152.png',
+    '/icons/icon-192.png',
+    '/icons/icon-384.png',
+    '/icons/icon-512.png'
 ];
 
 const EXTERNAL_ASSETS = [

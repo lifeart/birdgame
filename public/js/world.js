@@ -8,7 +8,23 @@ class World {
     }
 
     clear() {
-        this.objects.forEach(obj => this.scene.remove(obj));
+        // Properly dispose all objects to prevent memory leaks
+        this.objects.forEach(obj => {
+            this.scene.remove(obj);
+            // Traverse and dispose all geometries and materials
+            obj.traverse((child) => {
+                if (child.geometry) {
+                    child.geometry.dispose();
+                }
+                if (child.material) {
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach(m => m.dispose());
+                    } else {
+                        child.material.dispose();
+                    }
+                }
+            });
+        });
         this.objects = [];
         this.colliders = [];
         this.animatedObjects = [];
@@ -1007,6 +1023,16 @@ class World {
         group.rotation.y = rotation;
         this.scene.add(group);
         this.objects.push(group);
+
+        this.colliders.push({
+            type: 'box',
+            objectType: 'furniture',
+            x: x,
+            z: z,
+            width: 1.2,
+            depth: 1.2,
+            height: 1.5
+        });
     }
 
     createSeashell(x, z) {

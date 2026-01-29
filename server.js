@@ -126,7 +126,7 @@ function generateRandomName() {
 }
 
 // Generate initial worms for each location
-const locations = ['city', 'park', 'village'];
+const locations = ['city', 'park', 'village', 'beach', 'mountain'];
 locations.forEach(location => {
     const locationWorms = [];
     for (let i = 0; i < 20; i++) {

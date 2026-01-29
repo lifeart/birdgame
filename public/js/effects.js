@@ -537,14 +537,16 @@ class AmbientParticleSystem {
     }
 
     initPool() {
+        // Share geometry between all particles for better performance
+        this.sharedGeometry = new THREE.SphereGeometry(1, 6, 6);
+
         for (let i = 0; i < this.maxParticles; i++) {
-            const geom = new THREE.SphereGeometry(1, 6, 6);
             const mat = new THREE.MeshBasicMaterial({
                 color: 0xFFFFFF,
                 transparent: true,
                 opacity: 0
             });
-            const mesh = new THREE.Mesh(geom, mat);
+            const mesh = new THREE.Mesh(this.sharedGeometry, mat);
             mesh.visible = false;
             this.scene.add(mesh);
             this.particlePool.push({
@@ -569,6 +571,8 @@ class AmbientParticleSystem {
         if (!this.weatherSystem) return;
 
         const time = this.weatherSystem.timeOfDay;
+        if (typeof time !== 'number' || isNaN(time)) return;
+
         const isNight = time < 5.5 || time > 20.5;
         const isDusk = (time >= 18 && time <= 20.5) || (time >= 5 && time < 6.5);
 
@@ -598,15 +602,7 @@ class AmbientParticleSystem {
         // Set appearance
         particle.mesh.material.color.setHex(config.color);
         particle.mesh.scale.setScalar(config.size);
-
-        if (config.glow) {
-            particle.mesh.material.emissive = new THREE.Color(config.color);
-            particle.mesh.material.emissiveIntensity = 0.6;
-        } else {
-            if (particle.mesh.material.emissive) {
-                particle.mesh.material.emissive.setHex(0x000000);
-            }
-        }
+        particle.baseSize = config.size;
 
         // Spawn position around camera
         const spawnRadius = 25;
@@ -649,6 +645,12 @@ class AmbientParticleSystem {
     }
 
     update(deltaTime, cameraPosition, time) {
+        // Validate parameters
+        if (!cameraPosition) return;
+        if (typeof time !== 'number' || isNaN(time)) {
+            time = Date.now() / 1000;
+        }
+
         // Auto-switch type occasionally
         if (Math.random() < 0.005) {
             this.autoSetType();
@@ -691,8 +693,11 @@ class AmbientParticleSystem {
                     particle.velocity.z += (Math.random() - 0.5) * 0.01;
                     particle.velocity.clampLength(0, config.speed);
                     if (config.glow) {
+                        // Simulate glow with pulsing opacity and scale
                         const pulse = 0.4 + Math.sin(time * 4 + particle.phase) * 0.4;
                         particle.mesh.material.opacity = pulse * (particle.life / particle.maxLife);
+                        const scalePulse = 1 + Math.sin(time * 4 + particle.phase) * 0.3;
+                        particle.mesh.scale.setScalar((particle.baseSize || config.size) * scalePulse);
                     }
                     break;
                 case 'drift':
@@ -730,9 +735,14 @@ class AmbientParticleSystem {
     cleanup() {
         this.particlePool.forEach(p => {
             this.scene.remove(p.mesh);
-            if (p.mesh.geometry) p.mesh.geometry.dispose();
+            // Only dispose material, geometry is shared
             if (p.mesh.material) p.mesh.material.dispose();
         });
+        // Dispose shared geometry once
+        if (this.sharedGeometry) {
+            this.sharedGeometry.dispose();
+            this.sharedGeometry = null;
+        }
         this.particlePool = [];
         this.particles = [];
     }
@@ -747,6 +757,7 @@ const ColorPalette = {
     // Convert any color to pastel version
     toPastel(hexColor) {
         if (!this.pastelMode) return hexColor;
+        if (typeof hexColor !== 'number' || isNaN(hexColor)) return hexColor;
 
         const r = (hexColor >> 16) & 0xFF;
         const g = (hexColor >> 8) & 0xFF;
@@ -763,7 +774,7 @@ const ColorPalette = {
 
     // Apply pastel mode to a THREE.Color
     applyToColor(color) {
-        if (!this.pastelMode) return color;
+        if (!this.pastelMode || !color) return color;
         const hex = color.getHex();
         color.setHex(this.toPastel(hex));
         return color;

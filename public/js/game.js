@@ -133,7 +133,12 @@ class Game {
         this.flyManager = new FlyManager(this.scene);
         this.weatherSystem = new WeatherSystem(this.scene);
         this.effectsManager = new EffectsManager(this.scene);
-        this.ambientParticles = new AmbientParticleSystem(this.scene, this.weatherSystem);
+        try {
+            this.ambientParticles = new AmbientParticleSystem(this.scene, this.weatherSystem);
+        } catch (error) {
+            console.warn('Failed to initialize ambient particles:', error);
+            this.ambientParticles = null;
+        }
         this.network = new NetworkManager();
         this.ui = new UIManager();
 
@@ -1144,6 +1149,11 @@ class Game {
         // Cleanup ambient particles
         if (this.ambientParticles && this.ambientParticles.cleanup) {
             this.ambientParticles.cleanup();
+        }
+
+        // Cleanup effects manager
+        if (this.effectsManager && this.effectsManager.cleanup) {
+            this.effectsManager.cleanup();
         }
 
         // Dispose Three.js resources

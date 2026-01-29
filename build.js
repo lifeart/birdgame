@@ -14,8 +14,17 @@ async function minifyCSS(cssContent) {
     return result.code;
 }
 
+// Generate build version based on timestamp
+function generateBuildVersion() {
+    const now = new Date();
+    return `${now.getFullYear()}.${now.getMonth() + 1}.${now.getDate()}.${now.getHours()}${now.getMinutes()}`;
+}
+
 async function build() {
     console.log(`Building (${isProduction ? 'production' : 'development'})...`);
+
+    const buildVersion = generateBuildVersion();
+    console.log(`Build version: ${buildVersion}`);
 
     // Ensure dist directory exists
     const distDir = path.join(__dirname, 'dist');
@@ -59,6 +68,10 @@ async function build() {
             // Minify CSS files
             console.log('Minifying CSS...');
             await minifyAllCSS(publicDest);
+
+            // Update service worker version for cache invalidation
+            console.log('Updating service worker version...');
+            updateServiceWorkerVersion(publicDest, buildVersion);
         } else {
             // For development, create symlink
             if (fs.existsSync(publicDest)) {
@@ -193,6 +206,20 @@ function getDirSize(dir) {
         }
     }
     return totalSize;
+}
+
+function updateServiceWorkerVersion(publicDest, version) {
+    const swPath = path.join(publicDest, 'sw.js');
+    if (fs.existsSync(swPath)) {
+        let swContent = fs.readFileSync(swPath, 'utf8');
+        // Replace version in CACHE_NAME
+        swContent = swContent.replace(
+            /const CACHE_NAME = 'birdgame-v[^']+'/,
+            `const CACHE_NAME = 'birdgame-v${version}'`
+        );
+        fs.writeFileSync(swPath, swContent);
+        console.log(`  Service worker cache version: birdgame-v${version}`);
+    }
 }
 
 function copyDir(src, dest, skipExtensions = []) {
