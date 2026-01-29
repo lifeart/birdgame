@@ -80,12 +80,16 @@ class UIManager {
         this.scoreDisplay = document.getElementById('score');
         this.playerList = document.getElementById('playerList');
         this.playerNameInput = document.getElementById('playerName');
+        this.loadingOverlay = document.getElementById('loadingOverlay');
+        this.loadingText = this.loadingOverlay?.querySelector('.loading-text');
+        this.loadingProgressBar = this.loadingOverlay?.querySelector('.loading-progress-bar');
 
         // Load saved preferences or generate defaults
         this.selectedBird = loadSavedBird();
         this.selectedLocation = loadSavedLocation();
         this.chatOpen = false;
         this.leaderboardVisible = false;
+        this.loadingProgress = 0;
 
         this.callbacks = {};
 
@@ -311,6 +315,35 @@ class UIManager {
 
     setLocation(location) {
         this.selectedLocation = location;
+    }
+
+    showLoading(text = 'Loading...') {
+        if (this.loadingOverlay) {
+            this.loadingOverlay.classList.remove('hidden');
+            if (this.loadingText) {
+                this.loadingText.textContent = text;
+            }
+            this.setLoadingProgress(0);
+        }
+    }
+
+    hideLoading() {
+        if (this.loadingOverlay) {
+            this.loadingOverlay.classList.add('hidden');
+        }
+    }
+
+    setLoadingProgress(percent) {
+        this.loadingProgress = Math.min(100, Math.max(0, percent));
+        if (this.loadingProgressBar) {
+            this.loadingProgressBar.style.width = `${this.loadingProgress}%`;
+        }
+    }
+
+    setLoadingText(text) {
+        if (this.loadingText) {
+            this.loadingText.textContent = text;
+        }
     }
 
     showCameraMode(modeName) {

@@ -444,8 +444,15 @@ class Game {
 
         this.ui.on('changeLocation', (location) => {
             if (location !== this.currentLocation) {
+                // Show loading immediately
+                this.ui.showLoading(`Connecting to ${LOCATIONS[location]?.name || location}...`);
+                this.ui.setLoadingProgress(10);
+
                 if (!this.network.changeLocation(location)) {
+                    this.ui.hideLoading();
                     this.ui.addChatMessage(null, 'Cannot change location - disconnected', true);
+                } else {
+                    this.ui.setLoadingProgress(30);
                 }
             }
         });
@@ -758,13 +765,26 @@ class Game {
     }
 
     loadLocation(location) {
+        // Show loading indicator
+        this.ui.showLoading(`Loading ${LOCATIONS[location]?.name || location}...`);
+        this.ui.setLoadingProgress(10);
+
         this.world.clear();
+        this.ui.setLoadingProgress(20);
+
         this.weatherSystem.clear();
+        this.ui.setLoadingProgress(30);
 
         const locationConfig = LOCATIONS[location];
         if (locationConfig) {
+            this.ui.setLoadingText(`Generating ${locationConfig.name}...`);
+            this.ui.setLoadingProgress(40);
+
             locationConfig.generate(this.world);
+            this.ui.setLoadingProgress(70);
+
             this.scene.fog.color.setHex(locationConfig.skyBottomColor);
+            this.ui.setLoadingProgress(80);
 
             // Initialize weather system
             this.weatherSystem.init(this.scene.fog);
@@ -772,9 +792,15 @@ class Game {
             this.weatherSystem.setTimeOfDay(8 + Math.random() * 8);
             // Random weather (weighted towards clear)
             this.weatherSystem.randomWeather();
+            this.ui.setLoadingProgress(100);
         } else {
             console.warn(`Unknown location: ${location}`);
         }
+
+        // Hide loading after a brief delay to show 100%
+        setTimeout(() => {
+            this.ui.hideLoading();
+        }, 300);
     }
 
     changeLocation(location, worms, flies, players) {

@@ -1,5 +1,5 @@
 // BirdGame Service Worker
-const CACHE_NAME = 'birdgame-v1.0.0';
+const CACHE_NAME = 'birdgame-v1.1.0';
 
 const STATIC_ASSETS = [
     '/',

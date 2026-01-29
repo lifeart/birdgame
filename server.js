@@ -502,48 +502,74 @@ wss.on('connection', (ws) => {
 
                 case 'change_location':
                     const movingPlayer = players.get(ws);
-                    if (movingPlayer) {
-                        const oldLocation = movingPlayer.location;
-                        const newLocation = message.location;
+                    console.log('[Server] change_location request:', message.location, 'player:', movingPlayer?.name);
 
-                        if (locations.includes(newLocation) && oldLocation !== newLocation) {
-                            // Notify old location
-                            broadcastExcept({
-                                type: 'player_left',
-                                playerId: movingPlayer.id
-                            }, ws, oldLocation);
-
-                            // Update player location
-                            movingPlayer.location = newLocation;
-                            movingPlayer.x = 0;
-                            movingPlayer.y = 10;
-                            movingPlayer.z = 0;
-
-                            // Get all worms including golden worm for new location
-                            const locationWormsForChange = worms.get(newLocation).filter(w => !w.collected);
-                            const goldenWormForChange = goldenWorms.get(newLocation);
-                            if (goldenWormForChange && !goldenWormForChange.collected) {
-                                locationWormsForChange.push(goldenWormForChange);
-                            }
-
-                            // Send new location data
-                            ws.send(JSON.stringify({
-                                type: 'location_changed',
-                                location: newLocation,
-                                worms: locationWormsForChange,
-                                flies: flies.get(newLocation).filter(f => !f.collected),
-                                players: Array.from(players.values()).filter(p =>
-                                    p.id !== movingPlayer.id && p.location === newLocation
-                                )
-                            }));
-
-                            // Notify new location
-                            broadcastExcept({
-                                type: 'player_joined',
-                                player: movingPlayer
-                            }, ws, newLocation);
-                        }
+                    if (!movingPlayer) {
+                        console.log('[Server] Player not found in players map');
+                        break;
                     }
+
+                    const oldLocation = movingPlayer.location;
+                    const newLocation = message.location;
+
+                    console.log('[Server] Location change:', oldLocation, '->', newLocation);
+                    console.log('[Server] Valid location:', locations.includes(newLocation));
+                    console.log('[Server] Different location:', oldLocation !== newLocation);
+
+                    if (!locations.includes(newLocation)) {
+                        console.log('[Server] Invalid location:', newLocation);
+                        break;
+                    }
+
+                    if (oldLocation === newLocation) {
+                        console.log('[Server] Same location, ignoring');
+                        break;
+                    }
+
+                    // Notify old location
+                    broadcastExcept({
+                        type: 'player_left',
+                        playerId: movingPlayer.id
+                    }, ws, oldLocation);
+
+                    // Update player location
+                    movingPlayer.location = newLocation;
+                    movingPlayer.x = 0;
+                    movingPlayer.y = 10;
+                    movingPlayer.z = 0;
+
+                    // Get all worms including golden worm for new location (with null checks)
+                    const locationWormsArray = worms.get(newLocation) || [];
+                    const locationWormsForChange = locationWormsArray.filter(w => !w.collected);
+                    const goldenWormForChange = goldenWorms.get(newLocation);
+                    if (goldenWormForChange && !goldenWormForChange.collected) {
+                        locationWormsForChange.push(goldenWormForChange);
+                    }
+
+                    // Get flies for new location (with null check)
+                    const locationFliesArray = flies.get(newLocation) || [];
+                    const locationFliesForChange = locationFliesArray.filter(f => !f.collected);
+
+                    console.log('[Server] Sending location_changed:', newLocation, 'worms:', locationWormsForChange.length, 'flies:', locationFliesForChange.length);
+
+                    // Send new location data
+                    ws.send(JSON.stringify({
+                        type: 'location_changed',
+                        location: newLocation,
+                        worms: locationWormsForChange,
+                        flies: locationFliesForChange,
+                        players: Array.from(players.values()).filter(p =>
+                            p.id !== movingPlayer.id && p.location === newLocation
+                        )
+                    }));
+
+                    // Notify new location
+                    broadcastExcept({
+                        type: 'player_joined',
+                        player: movingPlayer
+                    }, ws, newLocation);
+
+                    console.log('[Server] Location change complete');
                     break;
 
                 case 'get_leaderboard':
