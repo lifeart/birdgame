@@ -2049,7 +2049,8 @@ class Bird {
     }
 
     getCollisionRadius() {
-        return this.config.size * 0.8;
+        // Use body-only radius (excludes wings from hitbox)
+        return this.config.size * 0.4;
     }
 
     remove() {

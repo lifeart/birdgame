@@ -3,6 +3,76 @@ class FlyManager {
     constructor(scene) {
         this.scene = scene;
         this.flies = new Map();
+
+        // Initialize shared geometries and materials for performance
+        this._initSharedGeometries();
+        this._initSharedMaterials();
+    }
+
+    _initSharedGeometries() {
+        // Shared geometries for fly parts
+        this.sharedGeometries = {
+            thorax: new THREE.SphereGeometry(0.25, 12, 10),
+            abdomen: new THREE.SphereGeometry(0.3, 12, 10),
+            head: new THREE.SphereGeometry(0.18, 10, 8),
+            eye: new THREE.SphereGeometry(0.1, 10, 8),
+            leg: new THREE.CylinderGeometry(0.015, 0.01, 0.25, 6),
+            indicator: new THREE.PlaneGeometry(0.6, 0.3)
+        };
+
+        // Create wing shape geometry
+        const wingShape = new THREE.Shape();
+        wingShape.moveTo(0, 0);
+        wingShape.quadraticCurveTo(0.4, 0.15, 0.7, 0);
+        wingShape.quadraticCurveTo(0.5, -0.1, 0, 0);
+        this.sharedGeometries.wing = new THREE.ShapeGeometry(wingShape);
+    }
+
+    _initSharedMaterials() {
+        // Shared materials for fly parts
+        this.sharedMaterials = {
+            body: new THREE.MeshPhongMaterial({
+                color: 0x1a1a2e,
+                shininess: 80,
+                emissive: 0x0a0a15,
+                emissiveIntensity: 0.2
+            }),
+            head: new THREE.MeshPhongMaterial({
+                color: 0x2a2a3e,
+                shininess: 60
+            }),
+            eye: new THREE.MeshPhongMaterial({
+                color: 0x8B0000,
+                shininess: 100,
+                emissive: 0x3a0000,
+                emissiveIntensity: 0.3
+            }),
+            wing: new THREE.MeshPhongMaterial({
+                color: 0xaaddff,
+                transparent: true,
+                opacity: 0.4,
+                shininess: 150,
+                side: THREE.DoubleSide
+            }),
+            leg: new THREE.MeshPhongMaterial({ color: 0x1a1a1a })
+        };
+
+        // Create shared indicator texture and material
+        const canvas = document.createElement('canvas');
+        canvas.width = 64;
+        canvas.height = 32;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#FFD700';
+        ctx.font = 'bold 24px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('x2', 32, 16);
+        this.sharedIndicatorTexture = new THREE.CanvasTexture(canvas);
+        this.sharedMaterials.indicator = new THREE.MeshBasicMaterial({
+            map: this.sharedIndicatorTexture,
+            transparent: true,
+            side: THREE.DoubleSide
+        });
     }
 
     clear() {
@@ -38,141 +108,67 @@ class FlyManager {
     createFlyMesh(x, y, z) {
         const group = new THREE.Group();
 
-        // Body - dark iridescent
-        const bodyMat = new THREE.MeshPhongMaterial({
-            color: 0x1a1a2e,
-            shininess: 80,
-            emissive: 0x0a0a15,
-            emissiveIntensity: 0.2
-        });
-
-        // Thorax (middle body)
-        const thorax = new THREE.Mesh(
-            new THREE.SphereGeometry(0.25, 12, 10),
-            bodyMat
-        );
+        // Thorax (middle body) - using shared geometry and material
+        const thorax = new THREE.Mesh(this.sharedGeometries.thorax, this.sharedMaterials.body);
         thorax.scale.set(0.8, 0.7, 1);
         group.add(thorax);
 
-        // Abdomen (back)
-        const abdomen = new THREE.Mesh(
-            new THREE.SphereGeometry(0.3, 12, 10),
-            bodyMat
-        );
+        // Abdomen (back) - using shared geometry and material
+        const abdomen = new THREE.Mesh(this.sharedGeometries.abdomen, this.sharedMaterials.body);
         abdomen.position.z = -0.35;
         abdomen.scale.set(0.7, 0.6, 1.2);
         group.add(abdomen);
 
-        // Head
-        const headMat = new THREE.MeshPhongMaterial({
-            color: 0x2a2a3e,
-            shininess: 60
-        });
-        const head = new THREE.Mesh(
-            new THREE.SphereGeometry(0.18, 10, 8),
-            headMat
-        );
+        // Head - using shared geometry and material
+        const head = new THREE.Mesh(this.sharedGeometries.head, this.sharedMaterials.head);
         head.position.z = 0.28;
         group.add(head);
 
-        // Compound eyes - large and red
-        const eyeMat = new THREE.MeshPhongMaterial({
-            color: 0x8B0000,
-            shininess: 100,
-            emissive: 0x3a0000,
-            emissiveIntensity: 0.3
-        });
-
-        const leftEye = new THREE.Mesh(
-            new THREE.SphereGeometry(0.1, 10, 8),
-            eyeMat
-        );
+        // Compound eyes - using shared geometry and material
+        const leftEye = new THREE.Mesh(this.sharedGeometries.eye, this.sharedMaterials.eye);
         leftEye.position.set(0.1, 0.05, 0.35);
         group.add(leftEye);
 
-        const rightEye = new THREE.Mesh(
-            new THREE.SphereGeometry(0.1, 10, 8),
-            eyeMat
-        );
+        const rightEye = new THREE.Mesh(this.sharedGeometries.eye, this.sharedMaterials.eye);
         rightEye.position.set(-0.1, 0.05, 0.35);
         group.add(rightEye);
 
-        // Wings - transparent and shimmery
-        const wingMat = new THREE.MeshPhongMaterial({
-            color: 0xaaddff,
-            transparent: true,
-            opacity: 0.4,
-            shininess: 150,
-            side: THREE.DoubleSide
-        });
-
-        // Wing shape
-        const wingShape = new THREE.Shape();
-        wingShape.moveTo(0, 0);
-        wingShape.quadraticCurveTo(0.4, 0.15, 0.7, 0);
-        wingShape.quadraticCurveTo(0.5, -0.1, 0, 0);
-
-        const wingGeom = new THREE.ShapeGeometry(wingShape);
-
-        const leftWing = new THREE.Mesh(wingGeom, wingMat);
+        // Wings - using shared geometry and material
+        const leftWing = new THREE.Mesh(this.sharedGeometries.wing, this.sharedMaterials.wing);
         leftWing.position.set(0.1, 0.15, 0);
         leftWing.rotation.y = -0.3;
         leftWing.rotation.x = 0.2;
         leftWing.name = 'leftWing';
         group.add(leftWing);
 
-        const rightWing = new THREE.Mesh(wingGeom, wingMat);
+        const rightWing = new THREE.Mesh(this.sharedGeometries.wing, this.sharedMaterials.wing);
         rightWing.position.set(-0.1, 0.15, 0);
         rightWing.rotation.y = Math.PI + 0.3;
         rightWing.rotation.x = 0.2;
         rightWing.name = 'rightWing';
         group.add(rightWing);
 
-        // Legs (6 legs)
-        const legMat = new THREE.MeshPhongMaterial({ color: 0x1a1a1a });
+        // Legs (6 legs) - using shared geometry and material
         for (let i = 0; i < 3; i++) {
             const zPos = 0.1 - i * 0.15;
 
             // Left leg
-            const leftLeg = new THREE.Mesh(
-                new THREE.CylinderGeometry(0.015, 0.01, 0.25, 6),
-                legMat
-            );
+            const leftLeg = new THREE.Mesh(this.sharedGeometries.leg, this.sharedMaterials.leg);
             leftLeg.position.set(0.15, -0.12, zPos);
             leftLeg.rotation.z = -0.8;
             leftLeg.rotation.x = 0.3 * (i - 1);
             group.add(leftLeg);
 
             // Right leg
-            const rightLeg = new THREE.Mesh(
-                new THREE.CylinderGeometry(0.015, 0.01, 0.25, 6),
-                legMat
-            );
+            const rightLeg = new THREE.Mesh(this.sharedGeometries.leg, this.sharedMaterials.leg);
             rightLeg.position.set(-0.15, -0.12, zPos);
             rightLeg.rotation.z = 0.8;
             rightLeg.rotation.x = 0.3 * (i - 1);
             group.add(rightLeg);
         }
 
-        // x2 indicator above the fly
-        const indicatorGeom = new THREE.PlaneGeometry(0.6, 0.3);
-        const canvas = document.createElement('canvas');
-        canvas.width = 64;
-        canvas.height = 32;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#FFD700';
-        ctx.font = 'bold 24px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('x2', 32, 16);
-
-        const indicatorTex = new THREE.CanvasTexture(canvas);
-        const indicatorMat = new THREE.MeshBasicMaterial({
-            map: indicatorTex,
-            transparent: true,
-            side: THREE.DoubleSide
-        });
-        const indicator = new THREE.Mesh(indicatorGeom, indicatorMat);
+        // x2 indicator above the fly - using shared geometry, texture and material
+        const indicator = new THREE.Mesh(this.sharedGeometries.indicator, this.sharedMaterials.indicator);
         indicator.position.y = 0.6;
         indicator.name = 'indicator';
         group.add(indicator);
@@ -193,13 +189,8 @@ class FlyManager {
     }
 
     disposeFlyMesh(mesh) {
-        mesh.traverse((child) => {
-            if (child.geometry) child.geometry.dispose();
-            if (child.material) {
-                if (child.material.map) child.material.map.dispose();
-                child.material.dispose();
-            }
-        });
+        // Fly uses shared geometries and materials - no disposal needed
+        // Just remove from scene (done by caller)
     }
 
     update(time) {
@@ -250,5 +241,32 @@ class FlyManager {
 
     getFlyCount() {
         return this.flies.size;
+    }
+
+    // Cleanup shared resources (call when destroying FlyManager)
+    cleanup() {
+        this.clear();
+
+        // Dispose shared geometries
+        if (this.sharedGeometries) {
+            Object.values(this.sharedGeometries).forEach(geom => {
+                if (geom && geom.dispose) geom.dispose();
+            });
+            this.sharedGeometries = null;
+        }
+
+        // Dispose shared materials
+        if (this.sharedMaterials) {
+            Object.values(this.sharedMaterials).forEach(mat => {
+                if (mat && mat.dispose) mat.dispose();
+            });
+            this.sharedMaterials = null;
+        }
+
+        // Dispose shared texture
+        if (this.sharedIndicatorTexture) {
+            this.sharedIndicatorTexture.dispose();
+            this.sharedIndicatorTexture = null;
+        }
     }
 }

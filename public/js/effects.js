@@ -6,6 +6,21 @@ class EffectsManager {
         this.auras = new Map();  // Bird ID -> Aura
         this.particles = [];     // Global particles
 
+        // Initialize shared geometries for performance
+        this._initSharedGeometries();
+
+    _initSharedGeometries() {
+        // Shared geometries for particles to avoid per-particle allocation
+        this.sharedGeometries = {
+            trailParticle: new THREE.SphereGeometry(0.1, 6, 6),
+            burstParticle: new THREE.SphereGeometry(0.1, 6, 6),
+            burstParticleGolden: new THREE.SphereGeometry(0.15, 6, 6),
+            levelUpParticle: new THREE.SphereGeometry(0.2, 8, 8),
+            auraGlow: new THREE.SphereGeometry(1, 16, 16), // Base size, scaled per-aura
+            auraInnerGlow: new THREE.SphereGeometry(0.7, 16, 16)
+        };
+    }
+
         // Trail configurations
         this.trailConfigs = {
             basic: {
@@ -111,7 +126,7 @@ class EffectsManager {
         trail.mesh.frustumCulled = false;
         this.scene.add(trail.mesh);
 
-        // Create particles if needed
+        // Create particles if needed - using shared geometry
         if (config.particles) {
             for (let i = 0; i < 20; i++) {
                 const particleMat = new THREE.MeshBasicMaterial({
@@ -119,10 +134,7 @@ class EffectsManager {
                     transparent: true,
                     opacity: 0
                 });
-                const particle = new THREE.Mesh(
-                    new THREE.SphereGeometry(0.1, 6, 6),
-                    particleMat
-                );
+                const particle = new THREE.Mesh(this.sharedGeometries.trailParticle, particleMat);
                 particle.visible = false;
                 this.scene.add(particle);
                 trail.particles.push({
@@ -238,9 +250,9 @@ class EffectsManager {
             trail.mesh.geometry.dispose();
             trail.mesh.material.dispose();
 
+            // Only dispose materials, geometry is shared
             for (const particle of trail.particles) {
                 this.scene.remove(particle.mesh);
-                particle.mesh.geometry.dispose();
                 particle.mesh.material.dispose();
             }
 
@@ -286,26 +298,26 @@ class EffectsManager {
                 aura.meshes.push(ring);
             }
         } else {
-            // Create simple glow sphere
-            const glowGeom = new THREE.SphereGeometry(config.size, 16, 16);
+            // Create simple glow sphere using shared geometry, scale to size
             const glowMat = new THREE.MeshBasicMaterial({
                 color: config.color,
                 transparent: true,
                 opacity: config.opacity
             });
-            const glow = new THREE.Mesh(glowGeom, glowMat);
+            const glow = new THREE.Mesh(this.sharedGeometries.auraGlow, glowMat);
+            glow.scale.setScalar(config.size);
             birdGroup.add(glow);
             aura.meshes.push(glow);
 
-            // Add secondary glow for lightning
+            // Add secondary glow for lightning using shared geometry
             if (config.secondaryColor) {
-                const innerGlowGeom = new THREE.SphereGeometry(config.size * 0.7, 16, 16);
                 const innerGlowMat = new THREE.MeshBasicMaterial({
                     color: config.secondaryColor,
                     transparent: true,
                     opacity: config.opacity * 0.5
                 });
-                const innerGlow = new THREE.Mesh(innerGlowGeom, innerGlowMat);
+                const innerGlow = new THREE.Mesh(this.sharedGeometries.auraInnerGlow, innerGlowMat);
+                innerGlow.scale.setScalar(config.size);
                 birdGroup.add(innerGlow);
                 aura.meshes.push(innerGlow);
             }
@@ -355,7 +367,11 @@ class EffectsManager {
                 if (aura.birdGroup) {
                     aura.birdGroup.remove(mesh);
                 }
-                mesh.geometry.dispose();
+                // Only dispose material, geometry may be shared
+                // Rainbow auras have their own geometry (torus), others use shared
+                if (aura.type === 'rainbow' && mesh.geometry) {
+                    mesh.geometry.dispose();
+                }
                 mesh.material.dispose();
             });
             this.auras.delete(birdId);
@@ -383,10 +399,13 @@ class EffectsManager {
             const oldParticle = this.particles.shift();
             if (oldParticle) {
                 this.scene.remove(oldParticle.mesh);
-                if (oldParticle.mesh.geometry) oldParticle.mesh.geometry.dispose();
+                // Only dispose material, geometry is shared
                 if (oldParticle.mesh.material) oldParticle.mesh.material.dispose();
             }
         }
+
+        // Use shared geometry based on type
+        const geom = isGolden ? this.sharedGeometries.burstParticleGolden : this.sharedGeometries.burstParticle;
 
         for (let i = 0; i < particleCount; i++) {
             const particleMat = new THREE.MeshBasicMaterial({
@@ -394,10 +413,7 @@ class EffectsManager {
                 transparent: true,
                 opacity: 1
             });
-            const particle = new THREE.Mesh(
-                new THREE.SphereGeometry(isGolden ? 0.15 : 0.1, 6, 6),
-                particleMat
-            );
+            const particle = new THREE.Mesh(geom, particleMat);
             particle.position.copy(position);
 
             const velocity = new THREE.Vector3(
@@ -427,10 +443,8 @@ class EffectsManager {
                 transparent: true,
                 opacity: 1
             });
-            const particle = new THREE.Mesh(
-                new THREE.SphereGeometry(0.2, 8, 8),
-                particleMat
-            );
+            // Use shared geometry for level up particles
+            const particle = new THREE.Mesh(this.sharedGeometries.levelUpParticle, particleMat);
             particle.position.copy(position);
 
             const angle = (i / particleCount) * Math.PI * 2;
@@ -457,7 +471,7 @@ class EffectsManager {
 
             if (particle.life <= 0) {
                 this.scene.remove(particle.mesh);
-                particle.mesh.geometry.dispose();
+                // Only dispose material, geometry is shared
                 particle.mesh.material.dispose();
                 this.particles.splice(i, 1);
             } else {
@@ -476,10 +490,18 @@ class EffectsManager {
 
         this.particles.forEach(particle => {
             this.scene.remove(particle.mesh);
-            particle.mesh.geometry.dispose();
+            // Only dispose material, geometry is shared
             particle.mesh.material.dispose();
         });
         this.particles = [];
+
+        // Dispose shared geometries
+        if (this.sharedGeometries) {
+            Object.values(this.sharedGeometries).forEach(geom => {
+                if (geom && geom.dispose) geom.dispose();
+            });
+            this.sharedGeometries = null;
+        }
     }
 }
 

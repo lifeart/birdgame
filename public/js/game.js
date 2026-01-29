@@ -680,7 +680,11 @@ class Game {
             this.loadLocation(location);
 
             this.playerBird = new Bird(this.scene, birdType, true);
-            this.playerBird.setPosition(0, 10, 0);
+
+            // Find a safe spawn position that doesn't collide with buildings
+            const birdRadius = this.playerBird.getCollisionRadius();
+            const safePos = this.world.findSafeSpawnPosition(0, 0, 15, birdRadius);
+            this.playerBird.setPosition(safePos.x, safePos.y, safePos.z);
 
             // Restore score from server (for returning players)
             this.score = gameData.player?.score || 0;
@@ -781,6 +785,7 @@ class Game {
             this.ui.setLoadingProgress(40);
 
             locationConfig.generate(this.world);
+            this.world.finalizeWorld(); // Build spatial index for fast collision detection
             this.ui.setLoadingProgress(70);
 
             this.scene.fog.color.setHex(locationConfig.skyBottomColor);
@@ -827,7 +832,11 @@ class Game {
         }
 
         if (this.playerBird) {
-            this.playerBird.setPosition(0, 10, 0);
+            // Find a safe spawn position that doesn't collide with buildings
+            const birdRadius = this.playerBird.getCollisionRadius();
+            const safePos = this.world.findSafeSpawnPosition(0, 0, 15, birdRadius);
+            this.playerBird.setPosition(safePos.x, safePos.y, safePos.z);
+            this.playerBird.velocity.set(0, 0, 0);
         }
 
         this.ui.addChatMessage(null, `Moved to ${LOCATIONS[location]?.name || location}`, true);
@@ -842,13 +851,16 @@ class Game {
         // Reset collision timer
         this.collisionStartTime = null;
 
-        // Respawn at safe height above current position or at spawn point
-        const safeY = 15;
+        // Find a safe spawn position that doesn't collide with buildings
         const currentX = this.playerBird.position.x;
         const currentZ = this.playerBird.position.z;
+        const birdRadius = this.playerBird.getCollisionRadius();
 
-        // Move to a safe position (above current spot or back to spawn)
-        this.playerBird.setPosition(currentX, safeY, currentZ);
+        // Use world's safe spawn finder
+        const safePos = this.world.findSafeSpawnPosition(currentX, currentZ, 15, birdRadius);
+
+        // Move to the safe position
+        this.playerBird.setPosition(safePos.x, safePos.y, safePos.z);
         this.playerBird.velocity.set(0, 0, 0);
 
         // Notify player
@@ -1202,12 +1214,12 @@ class Game {
 
         // Clear worms
         if (this.wormManager) {
-            this.wormManager.clear();
+            this.wormManager.cleanup();
         }
 
         // Clear flies
         if (this.flyManager) {
-            this.flyManager.clear();
+            this.flyManager.cleanup();
         }
 
         // Clear weather

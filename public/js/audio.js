@@ -13,6 +13,11 @@ class AudioManager {
         this.flapCooldown = 150;
         this.lastCollisionTime = 0;
         this.collisionCooldown = 500; // 500ms between collision sounds
+
+        // Pre-created buffer pools for frequently-used sounds
+        this.flapBufferPool = [];
+        this.flapBufferPoolSize = 5;
+        this.flapBufferIndex = 0;
     }
 
     init() {
@@ -21,9 +26,29 @@ class AudioManager {
         try {
             this.ctx = new (window.AudioContext || window.webkitAudioContext)();
             this.initialized = true;
+
+            // Pre-create flap buffers for better performance
+            this._initBufferPools();
         } catch (e) {
             console.warn('Web Audio API not supported');
             this.enabled = false;
+        }
+    }
+
+    // Pre-create audio buffers that are used frequently
+    _initBufferPools() {
+        if (!this.ctx) return;
+
+        // Create pool of flap sound buffers (noise bursts)
+        const bufferSize = Math.floor(this.ctx.sampleRate * 0.08);
+        for (let p = 0; p < this.flapBufferPoolSize; p++) {
+            const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+            // Each buffer has slightly different noise for variety
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+            }
+            this.flapBufferPool.push(buffer);
         }
     }
 
@@ -36,7 +61,7 @@ class AudioManager {
 
     // === SOUND GENERATORS ===
 
-    // Wing flap - whooshy sound
+    // Wing flap - whooshy sound (uses pre-created buffer pool for performance)
     playFlap() {
         if (!this.enabled || !this.ctx) return;
 
@@ -47,14 +72,12 @@ class AudioManager {
         const ctx = this.ctx;
         const t = ctx.currentTime;
 
-        // Noise burst for whoosh
-        const bufferSize = ctx.sampleRate * 0.08;
-        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-        const data = buffer.getChannelData(0);
+        // Use pre-created buffer from pool (cycles through for variety)
+        const buffer = this.flapBufferPool[this.flapBufferIndex];
+        this.flapBufferIndex = (this.flapBufferIndex + 1) % this.flapBufferPoolSize;
 
-        for (let i = 0; i < bufferSize; i++) {
-            data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
-        }
+        // If pool isn't initialized yet, skip
+        if (!buffer) return;
 
         const noise = ctx.createBufferSource();
         noise.buffer = buffer;

@@ -6,9 +6,79 @@ class World {
         this.colliders = [];
         this.animatedObjects = [];
 
+        // Spatial hash grid for O(1) collision detection
+        this.spatialGrid = new Map();
+        this.gridCellSize = 20; // Each cell is 20x20 units
+
         // Initialize shared materials cache to prevent memory leaks
         this._initSharedMaterials();
         this._initSharedGeometries();
+    }
+
+    // Get grid cell key for a position
+    _getGridKey(x, z) {
+        const cellX = Math.floor(x / this.gridCellSize);
+        const cellZ = Math.floor(z / this.gridCellSize);
+        return `${cellX},${cellZ}`;
+    }
+
+    // Get all grid cells that an object occupies
+    _getOccupiedCells(collider) {
+        const cells = [];
+        let minX, maxX, minZ, maxZ;
+
+        if (collider.type === 'box') {
+            const halfWidth = collider.width / 2;
+            const halfDepth = collider.depth / 2;
+            minX = collider.x - halfWidth;
+            maxX = collider.x + halfWidth;
+            minZ = collider.z - halfDepth;
+            maxZ = collider.z + halfDepth;
+        } else if (collider.type === 'cylinder') {
+            minX = collider.x - collider.radius;
+            maxX = collider.x + collider.radius;
+            minZ = collider.z - collider.radius;
+            maxZ = collider.z + collider.radius;
+        } else {
+            return cells;
+        }
+
+        // Find all cells the object overlaps
+        const minCellX = Math.floor(minX / this.gridCellSize);
+        const maxCellX = Math.floor(maxX / this.gridCellSize);
+        const minCellZ = Math.floor(minZ / this.gridCellSize);
+        const maxCellZ = Math.floor(maxZ / this.gridCellSize);
+
+        for (let cx = minCellX; cx <= maxCellX; cx++) {
+            for (let cz = minCellZ; cz <= maxCellZ; cz++) {
+                cells.push(`${cx},${cz}`);
+            }
+        }
+        return cells;
+    }
+
+    // Add a collider to the spatial grid
+    _addToSpatialGrid(collider) {
+        const cells = this._getOccupiedCells(collider);
+        for (const cellKey of cells) {
+            if (!this.spatialGrid.has(cellKey)) {
+                this.spatialGrid.set(cellKey, []);
+            }
+            this.spatialGrid.get(cellKey).push(collider);
+        }
+    }
+
+    // Rebuild spatial grid (call after adding colliders)
+    _rebuildSpatialGrid() {
+        this.spatialGrid.clear();
+        for (const collider of this.colliders) {
+            this._addToSpatialGrid(collider);
+        }
+    }
+
+    // Call this after world generation is complete to build spatial index
+    finalizeWorld() {
+        this._rebuildSpatialGrid();
     }
 
     _initSharedMaterials() {
@@ -125,6 +195,7 @@ class World {
         this.objects = [];
         this.colliders = [];
         this.animatedObjects = [];
+        this.spatialGrid.clear();
     }
 
     createGround(color = 0x3d5c3d, withGrass = true) {
@@ -1728,29 +1799,90 @@ class World {
         if (!position || typeof position.x !== 'number') return null;
         radius = Math.max(0, radius || 0);
 
-        for (const collider of this.colliders) {
-            if (collider.type === 'box') {
-                const halfWidth = collider.width / 2;
-                const halfDepth = collider.depth / 2;
+        // Use spatial grid for O(1) average lookup
+        // Check current cell and neighboring cells to handle objects near cell boundaries
+        const cellsToCheck = new Set();
+        const expandedRadius = radius + this.gridCellSize * 0.1; // Slight expansion for boundary cases
 
-                if (position.x > collider.x - halfWidth - radius &&
-                    position.x < collider.x + halfWidth + radius &&
-                    position.z > collider.z - halfDepth - radius &&
-                    position.z < collider.z + halfDepth + radius &&
-                    position.y < collider.height) {
-                    return collider.objectType || 'building';
-                }
-            } else if (collider.type === 'cylinder') {
-                const dx = position.x - collider.x;
-                const dz = position.z - collider.z;
-                const dist = Math.sqrt(dx * dx + dz * dz);
+        // Get cells that could contain colliding objects
+        for (let dx = -1; dx <= 1; dx++) {
+            for (let dz = -1; dz <= 1; dz++) {
+                const cellX = Math.floor((position.x + dx * expandedRadius) / this.gridCellSize);
+                const cellZ = Math.floor((position.z + dz * expandedRadius) / this.gridCellSize);
+                cellsToCheck.add(`${cellX},${cellZ}`);
+            }
+        }
 
-                if (dist < collider.radius + radius && position.y < collider.height) {
-                    return collider.objectType || 'tree';
+        // Check only colliders in relevant cells
+        const checkedColliders = new Set();
+        for (const cellKey of cellsToCheck) {
+            const cellColliders = this.spatialGrid.get(cellKey);
+            if (!cellColliders) continue;
+
+            for (const collider of cellColliders) {
+                // Skip if already checked (object may span multiple cells)
+                if (checkedColliders.has(collider)) continue;
+                checkedColliders.add(collider);
+
+                if (collider.type === 'box') {
+                    const halfWidth = collider.width / 2;
+                    const halfDepth = collider.depth / 2;
+
+                    if (position.x > collider.x - halfWidth - radius &&
+                        position.x < collider.x + halfWidth + radius &&
+                        position.z > collider.z - halfDepth - radius &&
+                        position.z < collider.z + halfDepth + radius &&
+                        position.y < collider.height) {
+                        return collider.objectType || 'building';
+                    }
+                } else if (collider.type === 'cylinder') {
+                    const dx = position.x - collider.x;
+                    const dz = position.z - collider.z;
+                    const dist = Math.sqrt(dx * dx + dz * dz);
+
+                    if (dist < collider.radius + radius && position.y < collider.height) {
+                        return collider.objectType || 'tree';
+                    }
                 }
             }
         }
         return null;
+    }
+
+    // Find a safe spawn position that doesn't collide with buildings/obstacles
+    findSafeSpawnPosition(startX = 0, startZ = 0, safeY = 15, radius = 2) {
+        const testPosition = { x: startX, y: safeY, z: startZ };
+
+        // First check if the requested position is safe
+        if (!this.checkCollision(testPosition, radius)) {
+            return { x: startX, y: safeY, z: startZ };
+        }
+
+        // Try positions in expanding circles around the start point
+        // First ring at 10 units (clears fountains with radius 7)
+        const offsets = [
+            // Inner ring (10 units away - clears most small obstacles like fountains)
+            { x: 10, z: 0 }, { x: -10, z: 0 }, { x: 0, z: 10 }, { x: 0, z: -10 },
+            { x: 7, z: 7 }, { x: -7, z: 7 }, { x: 7, z: -7 }, { x: -7, z: -7 },
+            // Second ring (18 units away)
+            { x: 18, z: 0 }, { x: -18, z: 0 }, { x: 0, z: 18 }, { x: 0, z: -18 },
+            { x: 13, z: 13 }, { x: -13, z: 13 }, { x: 13, z: -13 }, { x: -13, z: -13 },
+            // Outer ring (30 units away)
+            { x: 30, z: 0 }, { x: -30, z: 0 }, { x: 0, z: 30 }, { x: 0, z: -30 },
+            { x: 21, z: 21 }, { x: -21, z: 21 }, { x: 21, z: -21 }, { x: -21, z: -21 }
+        ];
+
+        for (const offset of offsets) {
+            testPosition.x = startX + offset.x;
+            testPosition.z = startZ + offset.z;
+
+            if (!this.checkCollision(testPosition, radius)) {
+                return { x: testPosition.x, y: safeY, z: testPosition.z };
+            }
+        }
+
+        // If all else fails, try higher altitude (above any building)
+        return { x: startX, y: 50, z: startZ };
     }
 
     // ==================== AMBIENT PARTICLES SYSTEM ====================

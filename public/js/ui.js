@@ -257,11 +257,48 @@ class UIManager {
     }
 
     updatePlayerList(players) {
-        this.playerList.innerHTML = players.map(p => `
-            <div class="player-entry" style="color: ${this.getBirdColor(p.bird)}">
-                ${this.escapeHtml(p.name)} (${BIRD_TYPES[p.bird]?.name || this.escapeHtml(p.bird)}) - ${p.score}
-            </div>
-        `).join('');
+        // Build a map of current player entries by name for diffing
+        const existingEntries = new Map();
+        Array.from(this.playerList.children).forEach(child => {
+            const name = child.dataset.playerName;
+            if (name) existingEntries.set(name, child);
+        });
+
+        // Track which players are still present
+        const currentNames = new Set();
+
+        players.forEach(p => {
+            const playerKey = p.name;
+            currentNames.add(playerKey);
+
+            const birdName = BIRD_TYPES[p.bird]?.name || this.escapeHtml(p.bird);
+            const displayText = `${this.escapeHtml(p.name)} (${birdName}) - ${p.score}`;
+            const color = this.getBirdColor(p.bird);
+
+            const existing = existingEntries.get(playerKey);
+            if (existing) {
+                // Update existing entry only if content changed
+                if (existing.textContent !== displayText || existing.style.color !== color) {
+                    existing.textContent = displayText;
+                    existing.style.color = color;
+                }
+            } else {
+                // Create new entry
+                const div = document.createElement('div');
+                div.className = 'player-entry';
+                div.dataset.playerName = playerKey;
+                div.style.color = color;
+                div.textContent = displayText;
+                this.playerList.appendChild(div);
+            }
+        });
+
+        // Remove entries for players who left
+        existingEntries.forEach((element, name) => {
+            if (!currentNames.has(name)) {
+                element.remove();
+            }
+        });
     }
 
     getBirdColor(birdType) {

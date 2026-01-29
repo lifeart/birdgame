@@ -12,6 +12,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Game state
 const players = new Map(); // ws -> player (active connections)
+const playersByLocation = new Map(); // location -> Set<ws> (for O(1) location broadcasts)
 const playerProfiles = new Map(); // normalized name -> { name, totalScore, lastSeen, bird }
 const worms = new Map();
 const goldenWorms = new Map(); // location -> goldenWorm or null
@@ -19,6 +20,28 @@ const flies = new Map(); // Flying flies - give x2 points
 let wormIdCounter = 0;
 let flyIdCounter = 0;
 let playerIdCounter = 0;
+
+// Initialize location sets
+const locations = ['city', 'park', 'village', 'beach', 'mountain'];
+locations.forEach(loc => playersByLocation.set(loc, new Set()));
+
+// Helper to add player to location index
+function addPlayerToLocation(ws, location) {
+    const locationSet = playersByLocation.get(location);
+    if (locationSet) locationSet.add(ws);
+}
+
+// Helper to remove player from location index
+function removePlayerFromLocation(ws, location) {
+    const locationSet = playersByLocation.get(location);
+    if (locationSet) locationSet.delete(ws);
+}
+
+// Helper to move player between locations
+function movePlayerLocation(ws, oldLocation, newLocation) {
+    removePlayerFromLocation(ws, oldLocation);
+    addPlayerToLocation(ws, newLocation);
+}
 
 // Golden Worm settings
 const GOLDEN_WORM_POINTS = 10;
@@ -126,7 +149,6 @@ function generateRandomName() {
 }
 
 // Generate initial worms for each location
-const locations = ['city', 'park', 'village', 'beach', 'mountain'];
 locations.forEach(location => {
     const locationWorms = [];
     for (let i = 0; i < 20; i++) {
@@ -282,27 +304,80 @@ setInterval(() => {
 
 function broadcast(message, targetLocation = null) {
     const data = JSON.stringify(message);
-    players.forEach((player, ws) => {
-        if (ws.readyState === 1) {
-            if (!targetLocation || player.location === targetLocation) {
+
+    if (targetLocation) {
+        // O(1) lookup using location index
+        const locationPlayers = playersByLocation.get(targetLocation);
+        if (locationPlayers) {
+            locationPlayers.forEach(ws => {
+                if (ws.readyState === 1) {
+                    ws.send(data);
+                }
+            });
+        }
+    } else {
+        // Broadcast to all players
+        players.forEach((player, ws) => {
+            if (ws.readyState === 1) {
                 ws.send(data);
             }
-        }
-    });
+        });
+    }
 }
 
 function broadcastExcept(message, excludeWs, targetLocation = null) {
     const data = JSON.stringify(message);
-    players.forEach((player, ws) => {
-        if (ws !== excludeWs && ws.readyState === 1) {
-            if (!targetLocation || player.location === targetLocation) {
+
+    if (targetLocation) {
+        // O(1) lookup using location index
+        const locationPlayers = playersByLocation.get(targetLocation);
+        if (locationPlayers) {
+            locationPlayers.forEach(ws => {
+                if (ws !== excludeWs && ws.readyState === 1) {
+                    ws.send(data);
+                }
+            });
+        }
+    } else {
+        // Broadcast to all players except one
+        players.forEach((player, ws) => {
+            if (ws !== excludeWs && ws.readyState === 1) {
                 ws.send(data);
             }
-        }
-    });
+        });
+    }
 }
 
+// Debounced leaderboard broadcast to reduce server load
+let leaderboardTimeout = null;
+let leaderboardDirty = false;
+
 function broadcastLeaderboard() {
+    // Mark leaderboard as needing update
+    leaderboardDirty = true;
+
+    // If no pending broadcast, schedule one
+    if (!leaderboardTimeout) {
+        leaderboardTimeout = setTimeout(() => {
+            if (leaderboardDirty) {
+                const leaderboard = getLeaderboard();
+                broadcast({ type: 'leaderboard', leaderboard });
+                leaderboardDirty = false;
+            }
+            leaderboardTimeout = null;
+        }, 1000); // Batch updates to once per second
+    }
+}
+
+// Immediate leaderboard broadcast (for new player joins, etc.)
+function broadcastLeaderboardImmediate() {
+    // Clear any pending debounced broadcast
+    if (leaderboardTimeout) {
+        clearTimeout(leaderboardTimeout);
+        leaderboardTimeout = null;
+    }
+    leaderboardDirty = false;
+
     const leaderboard = getLeaderboard();
     broadcast({ type: 'leaderboard', leaderboard });
 }
@@ -356,6 +431,7 @@ wss.on('connection', (ws) => {
                         score: profile.totalScore // Restore score from profile
                     };
                     players.set(ws, player);
+                    addPlayerToLocation(ws, player.location);
 
                     // Get all worms including golden worm for this location
                     const locationWormsForWelcome = worms.get(player.location).filter(w => !w.collected);
@@ -386,7 +462,7 @@ wss.on('connection', (ws) => {
 
                     // Update leaderboard for everyone if this is a returning player with score
                     if (profile.totalScore > 0) {
-                        broadcastLeaderboard();
+                        broadcastLeaderboardImmediate();
                     }
 
                     console.log(`Player ${player.name} joined as ${player.bird} in ${player.location} (score: ${player.score})`);
@@ -532,7 +608,8 @@ wss.on('connection', (ws) => {
                         playerId: movingPlayer.id
                     }, ws, oldLocation);
 
-                    // Update player location
+                    // Update player location and location index
+                    movePlayerLocation(ws, oldLocation, newLocation);
                     movingPlayer.location = newLocation;
                     movingPlayer.x = 0;
                     movingPlayer.y = 10;
@@ -589,6 +666,9 @@ wss.on('connection', (ws) => {
         if (player) {
             // Save score to profile before removing
             updateProfileScore(player.name, player.score);
+
+            // Remove from location index
+            removePlayerFromLocation(ws, player.location);
 
             broadcastExcept({
                 type: 'player_left',
