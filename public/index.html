@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1a1a2e">
+    <meta name="format-detection" content="telephone=no">
+    <title>BirdGame - 3D Bird Flying Game</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Main Menu -->
+    <div id="menu" class="menu">
+        <h1>BirdGame</h1>
+        <div class="menu-section">
+            <label for="playerName">Your Name:</label>
+            <input type="text" id="playerName" placeholder="Enter your name" maxlength="20">
+        </div>
+        <div class="menu-section">
+            <h3>Choose Your Bird:</h3>
+            <div class="bird-select">
+                <div class="bird-option selected" data-bird="sparrow">
+                    <div class="bird-preview sparrow-preview"></div>
+                    <span>Sparrow</span>
+                    <small>Fast & Agile</small>
+                </div>
+                <div class="bird-option" data-bird="pigeon">
+                    <div class="bird-preview pigeon-preview"></div>
+                    <span>Pigeon</span>
+                    <small>Balanced</small>
+                </div>
+                <div class="bird-option" data-bird="crow">
+                    <div class="bird-preview crow-preview"></div>
+                    <span>Crow</span>
+                    <small>Strong & Steady</small>
+                </div>
+                <div class="bird-option" data-bird="hummingbird">
+                    <div class="bird-preview hummingbird-preview"></div>
+                    <span>Hummingbird</span>
+                    <small>Ultra Fast</small>
+                </div>
+                <div class="bird-option" data-bird="penguin">
+                    <div class="bird-preview penguin-preview"></div>
+                    <span>Penguin</span>
+                    <small>Can't Fly!</small>
+                </div>
+            </div>
+        </div>
+        <div class="menu-section">
+            <h3>Choose Location:</h3>
+            <div class="location-select">
+                <div class="location-option selected" data-location="city">
+                    <span>City</span>
+                    <small>Tall buildings, urban life</small>
+                </div>
+                <div class="location-option" data-location="park">
+                    <span>Park</span>
+                    <small>Trees, fountain, nature</small>
+                </div>
+                <div class="location-option" data-location="village">
+                    <span>Village</span>
+                    <small>Cozy houses, lots of green</small>
+                </div>
+            </div>
+        </div>
+        <button id="startGame" class="start-btn">Start Game</button>
+    </div>
+
+    <!-- Game UI -->
+    <div id="gameUI" class="game-ui hidden">
+        <div id="score">Worms: 0</div>
+        <div id="playerList"></div>
+        <div id="controls-hint">
+            WASD - Move | Space - Up | Shift - Down | Q/E - Camera | V - View | C - Reset | R - Respawn | M - Mute | P - Weather | T - Time | Enter - Chat | Esc - Menu
+        </div>
+    </div>
+
+    <!-- Chat -->
+    <div id="chat" class="chat hidden">
+        <div class="chat-header" id="chat-header">
+            <span class="chat-title">Chat</span>
+            <button class="chat-toggle" id="chat-toggle">▼</button>
+        </div>
+        <div class="chat-content" id="chat-content">
+            <div id="chatMessages"></div>
+            <input type="text" id="chatInput" placeholder="Type message..." maxlength="200">
+        </div>
+    </div>
+
+    <!-- Pause Menu -->
+    <div id="pauseMenu" class="menu hidden">
+        <h2>Paused</h2>
+        <div class="menu-section">
+            <h3>Change Location:</h3>
+            <div class="location-select pause-location">
+                <div class="location-option" data-location="city">
+                    <span>City</span>
+                </div>
+                <div class="location-option" data-location="park">
+                    <span>Park</span>
+                </div>
+                <div class="location-option" data-location="village">
+                    <span>Village</span>
+                </div>
+            </div>
+        </div>
+        <button id="resumeGame" class="start-btn">Resume Game</button>
+    </div>
+
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <!-- Game Scripts -->
+    <script src="js/audio.js"></script>
+    <script src="js/bird.js"></script>
+    <script src="js/world.js"></script>
+    <script src="js/worms.js"></script>
+    <script src="js/flies.js"></script>
+    <script src="js/weather.js"></script>
+    <script src="js/locations.js"></script>
+    <script src="js/network.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/touch.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

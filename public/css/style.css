@@ -1,0 +1,807 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    overflow: hidden;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #1a1a2e;
+    /* Prevent text selection and touch callouts */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    /* Safe area for notched devices */
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* Allow text selection in inputs */
+input, textarea {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+}
+
+canvas {
+    display: block;
+}
+
+/* Menu Styles */
+.menu {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(135deg, #2d2d44 0%, #1a1a2e 100%);
+    padding: 30px;
+    border-radius: 20px;
+    color: white;
+    text-align: center;
+    z-index: 100;
+    min-width: 400px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.menu h1 {
+    font-size: 48px;
+    margin-bottom: 20px;
+    background: linear-gradient(45deg, #ff6b6b, #feca57, #48dbfb);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.menu h2 {
+    font-size: 32px;
+    margin-bottom: 20px;
+}
+
+.menu h3 {
+    font-size: 18px;
+    margin-bottom: 10px;
+    color: #aaa;
+}
+
+.menu-section {
+    margin-bottom: 20px;
+}
+
+.menu-section label {
+    display: block;
+    margin-bottom: 8px;
+    color: #aaa;
+}
+
+.menu-section input {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    font-size: 16px;
+    outline: none;
+    transition: background 0.3s;
+}
+
+.menu-section input:focus {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Bird Selection */
+.bird-select {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+}
+
+.bird-option {
+    padding: 15px 10px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    cursor: pointer;
+    transition: all 0.3s;
+    border: 2px solid transparent;
+}
+
+.bird-option:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.bird-option.selected {
+    border-color: #48dbfb;
+    background: rgba(72, 219, 251, 0.2);
+}
+
+.bird-option span {
+    display: block;
+    font-weight: bold;
+    margin-top: 10px;
+}
+
+.bird-option small {
+    color: #888;
+    font-size: 11px;
+}
+
+.bird-preview {
+    width: 50px;
+    height: 50px;
+    margin: 0 auto;
+    border-radius: 50%;
+}
+
+.sparrow-preview { background: linear-gradient(135deg, #8B7355, #A0826D); }
+.pigeon-preview { background: linear-gradient(135deg, #708090, #A9A9A9); }
+.crow-preview { background: linear-gradient(135deg, #1a1a1a, #4a4a4a); }
+.hummingbird-preview { background: linear-gradient(135deg, #00ff88, #00ccff); }
+.penguin-preview { background: linear-gradient(135deg, #1a1a1a, #FFFAF0, #FF6B00); }
+
+/* Location Selection */
+.location-select {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.location-option {
+    padding: 15px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    cursor: pointer;
+    transition: all 0.3s;
+    border: 2px solid transparent;
+}
+
+.location-option:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.location-option.selected {
+    border-color: #feca57;
+    background: rgba(254, 202, 87, 0.2);
+}
+
+.location-option span {
+    display: block;
+    font-weight: bold;
+}
+
+.location-option small {
+    color: #888;
+    font-size: 12px;
+}
+
+.start-btn {
+    padding: 15px 40px;
+    font-size: 20px;
+    background: linear-gradient(45deg, #ff6b6b, #feca57);
+    border: none;
+    border-radius: 30px;
+    color: white;
+    cursor: pointer;
+    transition: transform 0.3s, box-shadow 0.3s;
+    font-weight: bold;
+    margin-top: 10px;
+}
+
+.start-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 5px 20px rgba(255, 107, 107, 0.4);
+}
+
+/* Game UI */
+.game-ui {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 20px;
+    pointer-events: none;
+    z-index: 50;
+}
+
+#score {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    font-size: 24px;
+    color: white;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.3);
+    padding: 10px 20px;
+    border-radius: 10px;
+}
+
+#playerList {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    color: white;
+    text-align: right;
+    font-size: 14px;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 10px 15px;
+    border-radius: 10px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+#playerList .player-entry {
+    margin: 5px 0;
+    padding: 5px;
+    border-radius: 5px;
+}
+
+#controls-hint {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 12px;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.3);
+    padding: 8px 16px;
+    border-radius: 8px;
+    white-space: nowrap;
+    max-width: 95%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Chat */
+.chat {
+    position: fixed;
+    bottom: 60px;
+    left: 20px;
+    width: 350px;
+    z-index: 60;
+    background: rgba(0, 0, 0, 0.7);
+    border-radius: 8px;
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.chat-header {
+    display: none;
+}
+
+.chat-content {
+    transition: max-height 0.3s ease;
+}
+
+#chatMessages {
+    background: transparent;
+    border-radius: 10px 10px 0 0;
+    padding: 15px;
+    max-height: 200px;
+    overflow-y: auto;
+    color: white;
+    font-size: 14px;
+}
+
+#chatMessages .chat-message {
+    margin: 5px 0;
+    padding: 5px;
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+#chatMessages .chat-message .name {
+    font-weight: bold;
+    color: #48dbfb;
+}
+
+#chatMessages .system-message {
+    color: #feca57;
+    font-style: italic;
+}
+
+#chatInput {
+    width: 100%;
+    padding: 12px 15px;
+    border: none;
+    border-radius: 0 0 10px 10px;
+    background: rgba(0, 0, 0, 0.3);
+    color: white;
+    font-size: 14px;
+    outline: none;
+}
+
+#chatInput:focus {
+    background: rgba(0, 0, 0, 0.5);
+}
+
+/* Pause Menu */
+#pauseMenu {
+    min-width: 300px;
+}
+
+.pause-location .location-option small {
+    display: none;
+}
+
+/* Hidden */
+.hidden {
+    display: none !important;
+}
+
+/* ==================== */
+/* MOBILE & RESPONSIVE  */
+/* ==================== */
+
+/* Touch device specific */
+@media (pointer: coarse) {
+    /* Prevent iOS zoom on input focus */
+    .menu-section input,
+    #chatInput,
+    #playerName {
+        font-size: 16px !important;
+    }
+
+    /* Larger touch targets */
+    .bird-option,
+    .location-option {
+        min-height: 70px;
+    }
+
+    .start-btn {
+        min-height: 50px;
+        min-width: 200px;
+    }
+
+    /* Active states for touch */
+    .bird-option:active {
+        transform: scale(0.98);
+    }
+
+    .location-option:active {
+        transform: scale(0.98);
+    }
+
+    .start-btn:active {
+        transform: scale(0.95);
+    }
+}
+
+/* Tablet and below */
+@media (max-width: 768px) {
+    .menu {
+        min-width: auto;
+        width: 92%;
+        max-width: 450px;
+        padding: 20px;
+        max-height: 85vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .menu h1 {
+        font-size: 36px;
+        margin-bottom: 15px;
+    }
+
+    .menu h2 {
+        font-size: 26px;
+        margin-bottom: 15px;
+    }
+
+    .menu h3 {
+        font-size: 15px;
+        margin-bottom: 8px;
+    }
+
+    .menu-section {
+        margin-bottom: 15px;
+    }
+
+    .menu-section input {
+        padding: 14px 12px;
+    }
+
+    .bird-select {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+
+    .bird-option {
+        padding: 12px 8px;
+    }
+
+    .bird-preview {
+        width: 45px;
+        height: 45px;
+    }
+
+    .bird-option span {
+        font-size: 14px;
+        margin-top: 8px;
+    }
+
+    .bird-option small {
+        font-size: 10px;
+    }
+
+    .location-select {
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 8px;
+    }
+
+    .location-option {
+        padding: 12px 8px;
+    }
+
+    .location-option span {
+        font-size: 14px;
+    }
+
+    .location-option small {
+        font-size: 10px;
+        display: block;
+        margin-top: 4px;
+    }
+
+    .start-btn {
+        padding: 14px 35px;
+        font-size: 18px;
+        width: 100%;
+        max-width: 280px;
+    }
+
+    /* Game UI */
+    #score {
+        font-size: 18px;
+        padding: 8px 14px;
+        top: 10px;
+        left: 10px;
+    }
+
+    #playerList {
+        font-size: 12px;
+        padding: 8px 10px;
+        top: 10px;
+        right: 60px;
+        max-height: 120px;
+        max-width: 150px;
+    }
+
+    #controls-hint {
+        display: none;
+    }
+
+    /* Chat - mobile collapsible */
+    .chat {
+        width: auto;
+        min-width: 140px;
+        max-width: 160px;
+        left: 10px;
+        bottom: auto;
+        top: 60px;
+        background: rgba(0, 0, 0, 0.7);
+    }
+
+    .chat-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 6px 10px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        cursor: pointer;
+    }
+
+    .chat-title {
+        font-weight: bold;
+        font-size: 12px;
+        color: white;
+    }
+
+    .chat-toggle {
+        background: none;
+        border: none;
+        color: white;
+        cursor: pointer;
+        font-size: 12px;
+        padding: 0;
+        transition: transform 0.2s;
+    }
+
+    .chat-toggle.collapsed {
+        transform: rotate(-90deg);
+    }
+
+    .chat-content {
+        max-height: 150px;
+        overflow: hidden;
+    }
+
+    .chat-content.collapsed {
+        max-height: 0;
+    }
+
+    #chatMessages {
+        max-height: 100px;
+        padding: 6px;
+        font-size: 11px;
+    }
+
+    #chatMessages .chat-message {
+        margin: 3px 0;
+        padding: 3px 5px;
+    }
+
+    #chatInput {
+        padding: 8px 10px;
+        font-size: 11px;
+    }
+
+    /* Pause Menu */
+    #pauseMenu {
+        min-width: auto;
+        width: 85%;
+        max-width: 350px;
+    }
+
+    #pauseMenu h2 {
+        font-size: 24px;
+    }
+
+    .pause-location .location-option {
+        padding: 12px 10px;
+    }
+}
+
+/* Small phones */
+@media (max-width: 480px) {
+    .menu {
+        width: 95%;
+        padding: 15px;
+        border-radius: 15px;
+    }
+
+    .menu h1 {
+        font-size: 28px;
+        margin-bottom: 12px;
+    }
+
+    .menu h2 {
+        font-size: 22px;
+    }
+
+    .menu h3 {
+        font-size: 13px;
+    }
+
+    .menu-section {
+        margin-bottom: 12px;
+    }
+
+    .bird-select {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 6px;
+    }
+
+    .bird-option {
+        padding: 10px 6px;
+    }
+
+    .bird-preview {
+        width: 38px;
+        height: 38px;
+    }
+
+    .bird-option span {
+        font-size: 12px;
+        margin-top: 6px;
+    }
+
+    .bird-option small {
+        font-size: 9px;
+    }
+
+    .location-select {
+        grid-template-columns: 1fr;
+        gap: 6px;
+    }
+
+    .location-option {
+        padding: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        text-align: left;
+    }
+
+    .location-option span {
+        font-size: 14px;
+    }
+
+    .location-option small {
+        font-size: 11px;
+        margin-top: 0;
+        opacity: 0.7;
+    }
+
+    .start-btn {
+        padding: 12px 25px;
+        font-size: 16px;
+    }
+
+    #score {
+        font-size: 16px;
+        padding: 6px 12px;
+    }
+
+    #playerList {
+        font-size: 11px;
+        max-width: 120px;
+        right: 55px;
+    }
+
+    .chat {
+        min-width: 120px;
+        max-width: 140px;
+    }
+
+    #chatMessages {
+        max-height: 80px;
+        font-size: 10px;
+    }
+
+    .chat-title {
+        font-size: 11px;
+    }
+}
+
+/* Landscape mode on phones */
+@media (max-height: 500px) and (orientation: landscape) {
+    .menu {
+        max-height: 95vh;
+        padding: 12px 20px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .menu h1 {
+        font-size: 24px;
+        margin-bottom: 8px;
+    }
+
+    .menu-section {
+        margin-bottom: 8px;
+    }
+
+    .menu h3 {
+        font-size: 12px;
+        margin-bottom: 5px;
+    }
+
+    .bird-select {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 5px;
+    }
+
+    .bird-option {
+        padding: 6px 4px;
+    }
+
+    .bird-preview {
+        width: 30px;
+        height: 30px;
+    }
+
+    .bird-option span {
+        font-size: 10px;
+        margin-top: 3px;
+    }
+
+    .bird-option small {
+        display: none;
+    }
+
+    .location-select {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 5px;
+    }
+
+    .location-option {
+        padding: 8px 5px;
+    }
+
+    .location-option span {
+        font-size: 12px;
+    }
+
+    .location-option small {
+        display: none;
+    }
+
+    .start-btn {
+        padding: 10px 30px;
+        font-size: 14px;
+        margin-top: 5px;
+    }
+
+    .menu-section input {
+        padding: 10px;
+    }
+
+    /* Pause menu landscape */
+    #pauseMenu {
+        padding: 15px;
+    }
+
+    #pauseMenu h2 {
+        font-size: 20px;
+        margin-bottom: 10px;
+    }
+
+    .pause-location .location-select {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* Portrait orientation hint */
+@media (max-width: 768px) and (max-height: 600px) and (orientation: portrait) {
+    body::after {
+        content: '📱 Rotate for better gameplay';
+        position: fixed;
+        bottom: 15px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.85);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 25px;
+        font-size: 12px;
+        z-index: 9999;
+        pointer-events: none;
+        animation: hintFade 6s forwards;
+        white-space: nowrap;
+    }
+}
+
+@keyframes hintFade {
+    0% { opacity: 0; transform: translateX(-50%) translateY(20px); }
+    15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+    85% { opacity: 1; }
+    100% { opacity: 0; visibility: hidden; }
+}
+
+/* Very small screens */
+@media (max-width: 350px) {
+    .menu {
+        padding: 12px;
+    }
+
+    .menu h1 {
+        font-size: 24px;
+    }
+
+    .bird-option span {
+        font-size: 11px;
+    }
+
+    .start-btn {
+        font-size: 14px;
+        padding: 10px 20px;
+    }
+}
+
+/* High DPI screens */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    .menu {
+        border-width: 0.5px;
+    }
+
+    .bird-option,
+    .location-option {
+        border-width: 1.5px;
+    }
+}
