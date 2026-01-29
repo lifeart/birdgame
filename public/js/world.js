@@ -1851,10 +1851,12 @@ class World {
 
     // Find a safe spawn position that doesn't collide with buildings/obstacles
     findSafeSpawnPosition(startX = 0, startZ = 0, safeY = 15, radius = 2) {
-        const testPosition = { x: startX, y: safeY, z: startZ };
+        // Check collision at GROUND level (y=1) to avoid spawning above obstacles
+        // that the bird would fall onto (like fountains, benches)
+        const groundTestPosition = { x: startX, y: 1, z: startZ };
 
-        // First check if the requested position is safe
-        if (!this.checkCollision(testPosition, radius)) {
+        // First check if the requested position is safe at ground level
+        if (!this.checkCollision(groundTestPosition, radius)) {
             return { x: startX, y: safeY, z: startZ };
         }
 
@@ -1873,11 +1875,11 @@ class World {
         ];
 
         for (const offset of offsets) {
-            testPosition.x = startX + offset.x;
-            testPosition.z = startZ + offset.z;
+            groundTestPosition.x = startX + offset.x;
+            groundTestPosition.z = startZ + offset.z;
 
-            if (!this.checkCollision(testPosition, radius)) {
-                return { x: testPosition.x, y: safeY, z: testPosition.z };
+            if (!this.checkCollision(groundTestPosition, radius)) {
+                return { x: groundTestPosition.x, y: safeY, z: groundTestPosition.z };
             }
         }
 

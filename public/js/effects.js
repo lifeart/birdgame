@@ -9,18 +9,6 @@ class EffectsManager {
         // Initialize shared geometries for performance
         this._initSharedGeometries();
 
-    _initSharedGeometries() {
-        // Shared geometries for particles to avoid per-particle allocation
-        this.sharedGeometries = {
-            trailParticle: new THREE.SphereGeometry(0.1, 6, 6),
-            burstParticle: new THREE.SphereGeometry(0.1, 6, 6),
-            burstParticleGolden: new THREE.SphereGeometry(0.15, 6, 6),
-            levelUpParticle: new THREE.SphereGeometry(0.2, 8, 8),
-            auraGlow: new THREE.SphereGeometry(1, 16, 16), // Base size, scaled per-aura
-            auraInnerGlow: new THREE.SphereGeometry(0.7, 16, 16)
-        };
-    }
-
         // Trail configurations
         this.trailConfigs = {
             basic: {
@@ -88,6 +76,18 @@ class EffectsManager {
                 pulseSpeed: 3,
                 pulseAmount: 0.3
             }
+        };
+    }
+
+    _initSharedGeometries() {
+        // Shared geometries for particles to avoid per-particle allocation
+        this.sharedGeometries = {
+            trailParticle: new THREE.SphereGeometry(0.1, 6, 6),
+            burstParticle: new THREE.SphereGeometry(0.1, 6, 6),
+            burstParticleGolden: new THREE.SphereGeometry(0.15, 6, 6),
+            levelUpParticle: new THREE.SphereGeometry(0.2, 8, 8),
+            auraGlow: new THREE.SphereGeometry(1, 16, 16), // Base size, scaled per-aura
+            auraInnerGlow: new THREE.SphereGeometry(0.7, 16, 16)
         };
     }
 
