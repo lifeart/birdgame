@@ -746,11 +746,597 @@ class World {
         this.objects.push(group);
     }
 
+    // ==================== BEACH LOCATION METHODS ====================
+
+    createPalmTree(x, z, scale = 1) {
+        const group = new THREE.Group();
+
+        const trunkMat = new THREE.MeshPhongMaterial({
+            color: 0x8B7355,
+            flatShading: true
+        });
+
+        // Create curved trunk with segments
+        let currentY = 0;
+        let currentX = 0;
+        const segments = 5;
+        for (let i = 0; i < segments; i++) {
+            const segHeight = (2.5 + i * 0.4) * scale;
+            const radius = (0.4 - i * 0.05) * scale;
+            const segGeom = new THREE.CylinderGeometry(radius * 0.8, radius, segHeight, 8);
+            const seg = new THREE.Mesh(segGeom, trunkMat);
+
+            currentX += (i * 0.25) * scale;
+            seg.position.set(currentX, currentY + segHeight / 2, 0);
+            seg.rotation.z = i * 0.08;
+            seg.castShadow = true;
+            group.add(seg);
+            currentY += segHeight * 0.85;
+        }
+
+        // Palm fronds
+        const frondMat = new THREE.MeshPhongMaterial({
+            color: 0x228B22,
+            flatShading: true,
+            side: THREE.DoubleSide
+        });
+
+        const frondCount = 7;
+        for (let i = 0; i < frondCount; i++) {
+            const angle = (i / frondCount) * Math.PI * 2;
+            const frond = this.createPalmFrond(scale, frondMat);
+            frond.position.set(currentX, currentY, 0);
+            frond.rotation.y = angle;
+            frond.rotation.x = -0.4 - Math.random() * 0.3;
+            group.add(frond);
+        }
+
+        // Coconuts
+        if (Math.random() > 0.4) {
+            const coconutMat = new THREE.MeshPhongMaterial({ color: 0x8B4513 });
+            for (let i = 0; i < 2 + Math.floor(Math.random() * 2); i++) {
+                const coconut = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.25 * scale, 8, 8),
+                    coconutMat
+                );
+                coconut.position.set(
+                    currentX + (Math.random() - 0.5) * 0.4,
+                    currentY - 0.5,
+                    (Math.random() - 0.5) * 0.4
+                );
+                group.add(coconut);
+            }
+        }
+
+        group.position.set(x, 0, z);
+        this.scene.add(group);
+        this.objects.push(group);
+
+        this.colliders.push({
+            type: 'cylinder',
+            objectType: 'tree',
+            x: x,
+            z: z,
+            radius: 0.6 * scale,
+            height: currentY
+        });
+    }
+
+    createPalmFrond(scale, material) {
+        const group = new THREE.Group();
+
+        // Main stem
+        const stemGeom = new THREE.CylinderGeometry(0.04 * scale, 0.08 * scale, 3.5 * scale, 6);
+        const stem = new THREE.Mesh(stemGeom, material);
+        stem.rotation.x = Math.PI / 2;
+        stem.position.z = 1.75 * scale;
+        group.add(stem);
+
+        // Leaf segments
+        for (let i = 0; i < 10; i++) {
+            const leafSize = (0.7 - i * 0.05) * scale;
+            const leafGeom = new THREE.PlaneGeometry(leafSize, 0.15 * scale);
+
+            const leftLeaf = new THREE.Mesh(leafGeom, material);
+            const rightLeaf = new THREE.Mesh(leafGeom, material);
+
+            const zPos = i * 0.32 * scale;
+            leftLeaf.position.set(-leafSize / 2, 0, zPos);
+            rightLeaf.position.set(leafSize / 2, 0, zPos);
+            leftLeaf.rotation.z = 0.25;
+            rightLeaf.rotation.z = -0.25;
+
+            group.add(leftLeaf);
+            group.add(rightLeaf);
+        }
+
+        return group;
+    }
+
+    createWaterPlane(x, z, width, depth) {
+        const waterGeom = new THREE.PlaneGeometry(width, depth, 24, 24);
+
+        const waterMat = new THREE.ShaderMaterial({
+            uniforms: {
+                time: { value: 0 },
+                waterColor: { value: new THREE.Color(0x006994) },
+                foamColor: { value: new THREE.Color(0xFFFFFF) }
+            },
+            vertexShader: `
+                uniform float time;
+                varying vec2 vUv;
+                varying float vWaveHeight;
+
+                void main() {
+                    vUv = uv;
+                    vec3 pos = position;
+                    float wave1 = sin(pos.x * 0.08 + time * 1.5) * 0.6;
+                    float wave2 = sin(pos.y * 0.1 + time * 1.2) * 0.4;
+                    pos.z = wave1 + wave2;
+                    vWaveHeight = pos.z;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform vec3 waterColor;
+                uniform vec3 foamColor;
+                varying vec2 vUv;
+                varying float vWaveHeight;
+
+                void main() {
+                    float foam = smoothstep(0.4, 1.0, vWaveHeight);
+                    vec3 color = mix(waterColor, foamColor, foam * 0.35);
+                    float edge = smoothstep(0.0, 0.1, vUv.y) * smoothstep(1.0, 0.9, vUv.y);
+                    gl_FragColor = vec4(color, 0.85 * edge + 0.5);
+                }
+            `,
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+
+        const water = new THREE.Mesh(waterGeom, waterMat);
+        water.rotation.x = -Math.PI / 2;
+        water.position.set(x, 0.15, z);
+
+        this.scene.add(water);
+        this.objects.push(water);
+
+        this.animatedObjects.push({
+            object: water,
+            type: 'water',
+            material: waterMat
+        });
+    }
+
+    createBeachUmbrella(x, z, rotation = 0) {
+        const group = new THREE.Group();
+
+        const umbrellaColors = [0xFF6B6B, 0xFFD93D, 0x48DBFB, 0xFF85A2, 0x00FF88];
+        const umbrellaColor = umbrellaColors[Math.floor(Math.random() * umbrellaColors.length)];
+
+        // Pole
+        const poleGeom = new THREE.CylinderGeometry(0.08, 0.08, 4.5, 8);
+        const poleMat = new THREE.MeshPhongMaterial({ color: 0xDDDDDD });
+        const pole = new THREE.Mesh(poleGeom, poleMat);
+        pole.position.y = 2.25;
+        pole.castShadow = true;
+        group.add(pole);
+
+        // Canopy
+        const canopyGeom = new THREE.ConeGeometry(2.5, 1.2, 8);
+        const canopyMat = new THREE.MeshPhongMaterial({
+            color: umbrellaColor,
+            side: THREE.DoubleSide
+        });
+        const canopy = new THREE.Mesh(canopyGeom, canopyMat);
+        canopy.position.y = 4.5;
+        canopy.rotation.x = Math.PI;
+        canopy.castShadow = true;
+        group.add(canopy);
+
+        // White stripes
+        for (let i = 0; i < 8; i += 2) {
+            const stripeGeom = new THREE.ConeGeometry(2.52, 1.22, 8, 1, false, i * Math.PI / 4, Math.PI / 4);
+            const stripeMat = new THREE.MeshPhongMaterial({ color: 0xFFFFFF, side: THREE.DoubleSide });
+            const stripe = new THREE.Mesh(stripeGeom, stripeMat);
+            stripe.position.y = 4.5;
+            stripe.rotation.x = Math.PI;
+            group.add(stripe);
+        }
+
+        // Beach towel
+        const towelGeom = new THREE.PlaneGeometry(1.8, 2.8);
+        const towelColors = [0x4169E1, 0xFF6347, 0x32CD32, 0xFFD700];
+        const towelMat = new THREE.MeshPhongMaterial({
+            color: towelColors[Math.floor(Math.random() * towelColors.length)],
+            side: THREE.DoubleSide
+        });
+        const towel = new THREE.Mesh(towelGeom, towelMat);
+        towel.rotation.x = -Math.PI / 2;
+        towel.position.set(0.4, 0.03, 0.4);
+        group.add(towel);
+
+        group.position.set(x, 0, z);
+        group.rotation.y = rotation;
+        this.scene.add(group);
+        this.objects.push(group);
+
+        this.colliders.push({
+            type: 'cylinder',
+            objectType: 'metal',
+            x: x,
+            z: z,
+            radius: 0.15,
+            height: 5
+        });
+    }
+
+    createBeachChair(x, z, rotation = 0) {
+        const group = new THREE.Group();
+
+        const frameColor = 0xFFFFFF;
+        const fabricColors = [0xFF6B6B, 0x48DBFB, 0xFFD93D, 0x00FF88];
+        const fabricColor = fabricColors[Math.floor(Math.random() * fabricColors.length)];
+
+        const legMat = new THREE.MeshPhongMaterial({ color: frameColor });
+        const legGeom = new THREE.CylinderGeometry(0.04, 0.04, 1.2, 6);
+
+        // Legs
+        [[-0.35, -0.35], [0.35, -0.35], [-0.35, 0.35], [0.35, 0.35]].forEach(([lx, lz]) => {
+            const leg = new THREE.Mesh(legGeom, legMat);
+            leg.position.set(lx, 0.6, lz);
+            group.add(leg);
+        });
+
+        // Seat fabric
+        const seatGeom = new THREE.PlaneGeometry(0.9, 1.3);
+        const seatMat = new THREE.MeshPhongMaterial({ color: fabricColor, side: THREE.DoubleSide });
+        const seat = new THREE.Mesh(seatGeom, seatMat);
+        seat.rotation.x = -Math.PI / 2 + 0.25;
+        seat.position.set(0, 1, -0.15);
+        group.add(seat);
+
+        // Back rest
+        const backGeom = new THREE.PlaneGeometry(0.9, 0.7);
+        const back = new THREE.Mesh(backGeom, seatMat);
+        back.rotation.x = -0.5;
+        back.position.set(0, 1.3, -0.55);
+        group.add(back);
+
+        group.position.set(x, 0, z);
+        group.rotation.y = rotation;
+        this.scene.add(group);
+        this.objects.push(group);
+    }
+
+    createSeashell(x, z) {
+        const shellColors = [0xFFF8DC, 0xFFE4C4, 0xFAEBD7, 0xF5DEB3, 0xFFDAB9];
+        const shellColor = shellColors[Math.floor(Math.random() * shellColors.length)];
+
+        const shellGeom = new THREE.SphereGeometry(0.12, 8, 4, 0, Math.PI);
+        const shellMat = new THREE.MeshPhongMaterial({
+            color: shellColor,
+            flatShading: true
+        });
+        const shell = new THREE.Mesh(shellGeom, shellMat);
+        shell.position.set(x, 0.06, z);
+        shell.rotation.x = Math.PI / 2;
+        shell.rotation.y = Math.random() * Math.PI * 2;
+        shell.scale.set(1, 0.5, 1);
+
+        this.scene.add(shell);
+        this.objects.push(shell);
+    }
+
+    createSandPatches() {
+        const sandColors = [0xF5DEB3, 0xEDC9AF, 0xDEB887, 0xD2B48C];
+
+        for (let i = 0; i < 60; i++) {
+            const x = (Math.random() - 0.5) * 300;
+            const z = (Math.random() - 0.5) * 300;
+            const size = 2.5 + Math.random() * 5;
+
+            const patchGeom = new THREE.CircleGeometry(size, 8);
+            const patchMat = new THREE.MeshLambertMaterial({
+                color: sandColors[Math.floor(Math.random() * sandColors.length)]
+            });
+            const patch = new THREE.Mesh(patchGeom, patchMat);
+            patch.rotation.x = -Math.PI / 2;
+            patch.position.set(x, 0.015, z);
+            this.scene.add(patch);
+            this.objects.push(patch);
+        }
+    }
+
+    // ==================== MOUNTAIN LOCATION METHODS ====================
+
+    createMountainPeak(x, z, scale = 1) {
+        const group = new THREE.Group();
+
+        const baseHeight = 50 * scale;
+        const baseRadius = 35 * scale;
+
+        // Main mountain
+        const baseGeom = new THREE.ConeGeometry(baseRadius, baseHeight, 8);
+        const baseMat = new THREE.MeshPhongMaterial({
+            color: 0x696969,
+            flatShading: true
+        });
+        const base = new THREE.Mesh(baseGeom, baseMat);
+        base.position.y = baseHeight / 2;
+        base.castShadow = true;
+        group.add(base);
+
+        // Snow cap
+        const snowHeight = baseHeight * 0.28;
+        const snowRadius = baseRadius * 0.45;
+        const snowGeom = new THREE.ConeGeometry(snowRadius, snowHeight, 8);
+        const snowMat = new THREE.MeshPhongMaterial({
+            color: 0xFFFAFA,
+            flatShading: true
+        });
+        const snow = new THREE.Mesh(snowGeom, snowMat);
+        snow.position.y = baseHeight - snowHeight / 2 + 1;
+        group.add(snow);
+
+        // Rock details
+        for (let i = 0; i < 8; i++) {
+            const rockGeom = new THREE.DodecahedronGeometry(2.5 * scale + Math.random() * 2 * scale, 0);
+            const rockMat = new THREE.MeshPhongMaterial({
+                color: [0x5A5A5A, 0x4A4A4A, 0x6B6B6B][Math.floor(Math.random() * 3)],
+                flatShading: true
+            });
+            const rock = new THREE.Mesh(rockGeom, rockMat);
+            const angle = Math.random() * Math.PI * 2;
+            const dist = Math.random() * baseRadius * 0.7;
+            const height = (1 - dist / baseRadius) * baseHeight * 0.6;
+            rock.position.set(Math.cos(angle) * dist, height, Math.sin(angle) * dist);
+            rock.rotation.set(Math.random(), Math.random(), Math.random());
+            group.add(rock);
+        }
+
+        group.position.set(x, 0, z);
+        this.scene.add(group);
+        this.objects.push(group);
+
+        this.colliders.push({
+            type: 'cylinder',
+            objectType: 'stone',
+            x: x,
+            z: z,
+            radius: baseRadius * 0.85,
+            height: baseHeight
+        });
+    }
+
+    createCabin(x, z) {
+        const group = new THREE.Group();
+
+        const logColor = 0x8B4513;
+        const roofColor = 0x2F4F4F;
+        const cabinWidth = 10;
+        const cabinDepth = 8;
+        const cabinHeight = 5;
+
+        // Main walls
+        const wallMat = new THREE.MeshPhongMaterial({ color: logColor, flatShading: true });
+        const wallGeom = new THREE.BoxGeometry(cabinWidth, cabinHeight, cabinDepth);
+        const walls = new THREE.Mesh(wallGeom, wallMat);
+        walls.position.y = cabinHeight / 2;
+        walls.castShadow = true;
+        walls.receiveShadow = true;
+        group.add(walls);
+
+        // Log texture lines
+        const lineMat = new THREE.MeshPhongMaterial({ color: 0x5D3A1A });
+        for (let i = 0; i < 5; i++) {
+            const lineGeom = new THREE.BoxGeometry(cabinWidth + 0.3, 0.08, 0.25);
+            const line = new THREE.Mesh(lineGeom, lineMat);
+            line.position.set(0, i * 1 + 0.5, cabinDepth / 2 + 0.12);
+            group.add(line);
+
+            const lineBack = line.clone();
+            lineBack.position.z = -cabinDepth / 2 - 0.12;
+            group.add(lineBack);
+        }
+
+        // Roof
+        const roofSize = Math.max(cabinWidth, cabinDepth) * 0.75;
+        const roofGeom = new THREE.ConeGeometry(roofSize, 4, 4);
+        const roofMat = new THREE.MeshPhongMaterial({ color: roofColor });
+        const roof = new THREE.Mesh(roofGeom, roofMat);
+        roof.position.y = cabinHeight + 2;
+        roof.rotation.y = Math.PI / 4;
+        roof.castShadow = true;
+        group.add(roof);
+
+        // Chimney
+        const chimneyGeom = new THREE.BoxGeometry(1.2, 3, 1.2);
+        const chimneyMat = new THREE.MeshPhongMaterial({ color: 0x8B0000 });
+        const chimney = new THREE.Mesh(chimneyGeom, chimneyMat);
+        chimney.position.set(cabinWidth / 4, cabinHeight + 3.5, 0);
+        chimney.castShadow = true;
+        group.add(chimney);
+
+        // Door
+        const doorGeom = new THREE.BoxGeometry(2, 3.5, 0.25);
+        const doorMat = new THREE.MeshPhongMaterial({ color: 0x3D2314 });
+        const door = new THREE.Mesh(doorGeom, doorMat);
+        door.position.set(0, 1.75, cabinDepth / 2 + 0.12);
+        group.add(door);
+
+        // Windows
+        const windowMat = new THREE.MeshPhongMaterial({
+            color: 0x87CEEB,
+            transparent: true,
+            opacity: 0.7,
+            shininess: 100
+        });
+        [[-2.5, cabinDepth / 2 + 0.12], [2.5, cabinDepth / 2 + 0.12],
+         [-2.5, -cabinDepth / 2 - 0.12], [2.5, -cabinDepth / 2 - 0.12]].forEach(([wx, wz]) => {
+            const windowGeom = new THREE.BoxGeometry(1.3, 1.3, 0.15);
+            const win = new THREE.Mesh(windowGeom, windowMat);
+            win.position.set(wx, 3.5, wz);
+            group.add(win);
+        });
+
+        // Porch
+        const porchGeom = new THREE.BoxGeometry(cabinWidth + 1.5, 0.25, 2.5);
+        const porchMat = new THREE.MeshPhongMaterial({ color: 0x6B4423 });
+        const porch = new THREE.Mesh(porchGeom, porchMat);
+        porch.position.set(0, 0.12, cabinDepth / 2 + 1.25);
+        group.add(porch);
+
+        group.position.set(x, 0, z);
+        this.scene.add(group);
+        this.objects.push(group);
+
+        this.colliders.push({
+            type: 'box',
+            objectType: 'house',
+            x: x,
+            z: z,
+            width: cabinWidth + 2,
+            depth: cabinDepth + 4,
+            height: cabinHeight + 6
+        });
+    }
+
+    createWaterfall(x, z) {
+        const group = new THREE.Group();
+
+        // Rock face
+        const rockGeom = new THREE.BoxGeometry(7, 18, 3.5);
+        const rockMat = new THREE.MeshPhongMaterial({ color: 0x5A5A5A, flatShading: true });
+        const rock = new THREE.Mesh(rockGeom, rockMat);
+        rock.position.y = 9;
+        rock.castShadow = true;
+        group.add(rock);
+
+        // Water stream
+        const waterGeom = new THREE.PlaneGeometry(2.5, 16, 4, 16);
+        const waterMat = new THREE.ShaderMaterial({
+            uniforms: {
+                time: { value: 0 },
+                waterColor: { value: new THREE.Color(0x4169E1) }
+            },
+            vertexShader: `
+                uniform float time;
+                varying vec2 vUv;
+                void main() {
+                    vUv = uv;
+                    vec3 pos = position;
+                    pos.z = sin(pos.y * 2.5 + time * 6.0) * 0.15;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform vec3 waterColor;
+                varying vec2 vUv;
+                void main() {
+                    float foam = smoothstep(0.0, 0.15, vUv.x) * smoothstep(1.0, 0.85, vUv.x);
+                    vec3 color = mix(vec3(1.0), waterColor, foam);
+                    gl_FragColor = vec4(color, 0.8);
+                }
+            `,
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+        const water = new THREE.Mesh(waterGeom, waterMat);
+        water.position.set(0, 9, 2);
+        group.add(water);
+
+        // Pool at bottom
+        const poolGeom = new THREE.CylinderGeometry(4, 5, 0.8, 16);
+        const poolMat = new THREE.MeshPhongMaterial({
+            color: 0x4169E1,
+            transparent: true,
+            opacity: 0.75
+        });
+        const pool = new THREE.Mesh(poolGeom, poolMat);
+        pool.position.y = 0.4;
+        group.add(pool);
+
+        // Mist particles
+        for (let i = 0; i < 12; i++) {
+            const mistGeom = new THREE.SphereGeometry(0.25 + Math.random() * 0.25, 6, 6);
+            const mistMat = new THREE.MeshBasicMaterial({
+                color: 0xFFFFFF,
+                transparent: true,
+                opacity: 0.25 + Math.random() * 0.2
+            });
+            const mist = new THREE.Mesh(mistGeom, mistMat);
+            mist.position.set(
+                (Math.random() - 0.5) * 3.5,
+                Math.random() * 4 + 0.8,
+                1.8 + Math.random() * 2
+            );
+            group.add(mist);
+        }
+
+        group.position.set(x, 0, z);
+        this.scene.add(group);
+        this.objects.push(group);
+
+        this.animatedObjects.push({
+            object: water,
+            type: 'waterfall',
+            material: waterMat
+        });
+
+        this.colliders.push({
+            type: 'box',
+            objectType: 'stone',
+            x: x,
+            z: z,
+            width: 7,
+            depth: 5,
+            height: 18
+        });
+    }
+
+    createSnowPatch(x, z) {
+        const size = 2.5 + Math.random() * 4;
+        const patchGeom = new THREE.CircleGeometry(size, 8);
+        const patchMat = new THREE.MeshLambertMaterial({
+            color: 0xFFFAFA,
+            transparent: true,
+            opacity: 0.85
+        });
+        const patch = new THREE.Mesh(patchGeom, patchMat);
+        patch.rotation.x = -Math.PI / 2;
+        patch.position.set(x, 0.025, z);
+        this.scene.add(patch);
+        this.objects.push(patch);
+    }
+
+    createRockyTerrain() {
+        for (let i = 0; i < 40; i++) {
+            const x = (Math.random() - 0.5) * 180;
+            const z = (Math.random() - 0.5) * 180;
+
+            const rockGeom = new THREE.DodecahedronGeometry(0.25 + Math.random() * 0.4, 0);
+            const rockMat = new THREE.MeshPhongMaterial({
+                color: [0x696969, 0x5A5A5A, 0x4A4A4A][Math.floor(Math.random() * 3)],
+                flatShading: true
+            });
+            const rock = new THREE.Mesh(rockGeom, rockMat);
+            rock.position.set(x, 0.12, z);
+            rock.rotation.set(Math.random(), Math.random(), Math.random());
+            this.scene.add(rock);
+            this.objects.push(rock);
+        }
+    }
+
     update(time) {
-        // Animate clouds
+        // Animate all animated objects
         this.animatedObjects.forEach(item => {
             if (item.type === 'cloud') {
                 item.object.position.x = item.startX + Math.sin(time * item.speed) * 20;
+            } else if (item.type === 'water' && item.material && item.material.uniforms) {
+                item.material.uniforms.time.value = time;
+            } else if (item.type === 'waterfall' && item.material && item.material.uniforms) {
+                item.material.uniforms.time.value = time;
             }
         });
     }

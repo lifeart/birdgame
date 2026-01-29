@@ -133,6 +133,7 @@ class Game {
         this.flyManager = new FlyManager(this.scene);
         this.weatherSystem = new WeatherSystem(this.scene);
         this.effectsManager = new EffectsManager(this.scene);
+        this.ambientParticles = new AmbientParticleSystem(this.scene, this.weatherSystem);
         this.network = new NetworkManager();
         this.ui = new UIManager();
 
@@ -222,6 +223,13 @@ class Game {
                         const h = Math.floor(this.weatherSystem.timeOfDay);
                         const m = Math.floor((this.weatherSystem.timeOfDay % 1) * 60);
                         this.ui.showCameraMode(`Time: ${h}:${m.toString().padStart(2, '0')}`);
+                    }
+                    break;
+                case 'KeyL':
+                    // Toggle pastel mode
+                    if (typeof ColorPalette !== 'undefined') {
+                        const isPastel = ColorPalette.toggle();
+                        this.ui.showCameraMode(isPastel ? 'Pastel ON' : 'Pastel OFF');
                     }
                     break;
                 case 'KeyR':
@@ -966,6 +974,11 @@ class Game {
             }
         }
 
+        // Update ambient particles (fireflies, dust, feathers)
+        if (this.ambientParticles && this.camera) {
+            this.ambientParticles.update(delta, this.camera.position, time);
+        }
+
         // Check for golden worm spawn (client-side visual indicator)
         if (this.wormManager.hasGoldenWorm() && !this.goldenWormAlertShown) {
             this.ui.showGoldenWormAlert();
@@ -1126,6 +1139,11 @@ class Game {
         // Cleanup UI
         if (this.ui && this.ui.cleanup) {
             this.ui.cleanup();
+        }
+
+        // Cleanup ambient particles
+        if (this.ambientParticles && this.ambientParticles.cleanup) {
+            this.ambientParticles.cleanup();
         }
 
         // Dispose Three.js resources

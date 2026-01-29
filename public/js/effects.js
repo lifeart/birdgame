@@ -482,3 +482,302 @@ class EffectsManager {
         this.particles = [];
     }
 }
+
+// ==================== AMBIENT PARTICLE SYSTEM ====================
+// Creates atmospheric particles: fireflies, dust, feathers
+
+class AmbientParticleSystem {
+    constructor(scene, weatherSystem) {
+        this.scene = scene;
+        this.weatherSystem = weatherSystem;
+
+        this.particles = [];
+        this.particlePool = [];
+        this.maxParticles = 100;
+
+        this.currentType = 'none';
+        this.spawnRate = 0.15;
+        this.lastSpawn = 0;
+
+        // Particle type configurations
+        this.configs = {
+            fireflies: {
+                color: 0xFFFF88,
+                emissive: true,
+                size: 0.12,
+                speed: 0.4,
+                lifespan: 10,
+                glow: true,
+                spawnHeight: { min: 1, max: 12 },
+                movement: 'float'
+            },
+            dust: {
+                color: 0xDDCCAA,
+                emissive: false,
+                size: 0.06,
+                speed: 0.15,
+                lifespan: 8,
+                glow: false,
+                spawnHeight: { min: 0.5, max: 15 },
+                movement: 'drift'
+            },
+            feathers: {
+                color: 0xFFFFFF,
+                emissive: false,
+                size: 0.15,
+                speed: 0.25,
+                lifespan: 12,
+                glow: false,
+                spawnHeight: { min: 3, max: 25 },
+                movement: 'fall'
+            }
+        };
+
+        this.initPool();
+    }
+
+    initPool() {
+        for (let i = 0; i < this.maxParticles; i++) {
+            const geom = new THREE.SphereGeometry(1, 6, 6);
+            const mat = new THREE.MeshBasicMaterial({
+                color: 0xFFFFFF,
+                transparent: true,
+                opacity: 0
+            });
+            const mesh = new THREE.Mesh(geom, mat);
+            mesh.visible = false;
+            this.scene.add(mesh);
+            this.particlePool.push({
+                mesh: mesh,
+                active: false,
+                velocity: new THREE.Vector3(),
+                life: 0,
+                maxLife: 1,
+                type: null,
+                phase: Math.random() * Math.PI * 2
+            });
+        }
+    }
+
+    setType(type) {
+        if (this.configs[type] || type === 'none') {
+            this.currentType = type;
+        }
+    }
+
+    autoSetType() {
+        if (!this.weatherSystem) return;
+
+        const time = this.weatherSystem.timeOfDay;
+        const isNight = time < 5.5 || time > 20.5;
+        const isDusk = (time >= 18 && time <= 20.5) || (time >= 5 && time < 6.5);
+
+        if (isNight) {
+            this.setType('fireflies');
+        } else if (isDusk) {
+            this.setType('dust');
+        } else {
+            this.setType(Math.random() > 0.6 ? 'feathers' : 'dust');
+        }
+    }
+
+    spawn(cameraPosition) {
+        const config = this.configs[this.currentType];
+        if (!config) return;
+
+        const particle = this.particlePool.find(p => !p.active);
+        if (!particle) return;
+
+        particle.active = true;
+        particle.mesh.visible = true;
+        particle.type = this.currentType;
+        particle.life = config.lifespan;
+        particle.maxLife = config.lifespan;
+        particle.phase = Math.random() * Math.PI * 2;
+
+        // Set appearance
+        particle.mesh.material.color.setHex(config.color);
+        particle.mesh.scale.setScalar(config.size);
+
+        if (config.glow) {
+            particle.mesh.material.emissive = new THREE.Color(config.color);
+            particle.mesh.material.emissiveIntensity = 0.6;
+        } else {
+            if (particle.mesh.material.emissive) {
+                particle.mesh.material.emissive.setHex(0x000000);
+            }
+        }
+
+        // Spawn position around camera
+        const spawnRadius = 25;
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 5 + Math.random() * spawnRadius;
+        const spawnX = cameraPosition.x + Math.cos(angle) * dist;
+        const spawnZ = cameraPosition.z + Math.sin(angle) * dist;
+        const spawnY = config.spawnHeight.min +
+            Math.random() * (config.spawnHeight.max - config.spawnHeight.min);
+
+        particle.mesh.position.set(spawnX, spawnY, spawnZ);
+
+        // Initial velocity
+        switch (config.movement) {
+            case 'float':
+                particle.velocity.set(
+                    (Math.random() - 0.5) * config.speed,
+                    (Math.random() - 0.5) * config.speed * 0.3,
+                    (Math.random() - 0.5) * config.speed
+                );
+                break;
+            case 'drift':
+                particle.velocity.set(
+                    (Math.random() - 0.5) * config.speed,
+                    -config.speed * 0.2,
+                    (Math.random() - 0.5) * config.speed
+                );
+                break;
+            case 'fall':
+                particle.velocity.set(
+                    (Math.random() - 0.5) * config.speed * 0.4,
+                    -config.speed * 0.4,
+                    (Math.random() - 0.5) * config.speed * 0.4
+                );
+                break;
+        }
+
+        particle.mesh.material.opacity = 0.8;
+        this.particles.push(particle);
+    }
+
+    update(deltaTime, cameraPosition, time) {
+        // Auto-switch type occasionally
+        if (Math.random() < 0.005) {
+            this.autoSetType();
+        }
+
+        // Spawn new particles
+        if (this.currentType !== 'none' && this.particles.length < this.maxParticles * 0.7) {
+            this.lastSpawn += deltaTime;
+            if (this.lastSpawn > this.spawnRate) {
+                this.spawn(cameraPosition);
+                this.lastSpawn = 0;
+            }
+        }
+
+        // Update existing particles
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            const particle = this.particles[i];
+            const config = this.configs[particle.type];
+            if (!config) continue;
+
+            particle.life -= deltaTime;
+
+            if (particle.life <= 0 || particle.mesh.position.y < -1) {
+                particle.active = false;
+                particle.mesh.visible = false;
+                this.particles.splice(i, 1);
+                continue;
+            }
+
+            // Update position
+            particle.mesh.position.x += particle.velocity.x * deltaTime * 60;
+            particle.mesh.position.y += particle.velocity.y * deltaTime * 60;
+            particle.mesh.position.z += particle.velocity.z * deltaTime * 60;
+
+            // Movement-specific updates
+            switch (config.movement) {
+                case 'float':
+                    particle.velocity.x += (Math.random() - 0.5) * 0.01;
+                    particle.velocity.y += (Math.random() - 0.5) * 0.01;
+                    particle.velocity.z += (Math.random() - 0.5) * 0.01;
+                    particle.velocity.clampLength(0, config.speed);
+                    if (config.glow) {
+                        const pulse = 0.4 + Math.sin(time * 4 + particle.phase) * 0.4;
+                        particle.mesh.material.opacity = pulse * (particle.life / particle.maxLife);
+                    }
+                    break;
+                case 'drift':
+                    particle.velocity.x = Math.sin(time * 1.5 + particle.phase) * config.speed * 0.4;
+                    break;
+                case 'fall':
+                    particle.velocity.x = Math.sin(time * 1.2 + particle.phase) * config.speed * 0.6;
+                    particle.mesh.rotation.z = Math.sin(time * 2 + particle.phase) * 0.4;
+                    break;
+            }
+
+            // Fade out near end of life
+            const fadeStart = particle.maxLife * 0.25;
+            if (particle.life < fadeStart && !config.glow) {
+                particle.mesh.material.opacity = (particle.life / fadeStart) * 0.8;
+            }
+
+            // Remove if too far from camera
+            const dx = particle.mesh.position.x - cameraPosition.x;
+            const dz = particle.mesh.position.z - cameraPosition.z;
+            if (dx * dx + dz * dz > 2500) {
+                particle.life = 0;
+            }
+        }
+    }
+
+    clear() {
+        this.particles.forEach(p => {
+            p.active = false;
+            p.mesh.visible = false;
+        });
+        this.particles = [];
+    }
+
+    cleanup() {
+        this.particlePool.forEach(p => {
+            this.scene.remove(p.mesh);
+            if (p.mesh.geometry) p.mesh.geometry.dispose();
+            if (p.mesh.material) p.mesh.material.dispose();
+        });
+        this.particlePool = [];
+        this.particles = [];
+    }
+}
+
+// ==================== COLOR PALETTE ====================
+// Pastel mode for softer, more pleasant visuals
+
+const ColorPalette = {
+    pastelMode: false,
+
+    // Convert any color to pastel version
+    toPastel(hexColor) {
+        if (!this.pastelMode) return hexColor;
+
+        const r = (hexColor >> 16) & 0xFF;
+        const g = (hexColor >> 8) & 0xFF;
+        const b = hexColor & 0xFF;
+
+        // Pastel formula: mix with white and reduce saturation
+        const pastelFactor = 0.45;
+        const newR = Math.round(r + (255 - r) * pastelFactor);
+        const newG = Math.round(g + (255 - g) * pastelFactor);
+        const newB = Math.round(b + (255 - b) * pastelFactor);
+
+        return (newR << 16) | (newG << 8) | newB;
+    },
+
+    // Apply pastel mode to a THREE.Color
+    applyToColor(color) {
+        if (!this.pastelMode) return color;
+        const hex = color.getHex();
+        color.setHex(this.toPastel(hex));
+        return color;
+    },
+
+    toggle() {
+        this.pastelMode = !this.pastelMode;
+        return this.pastelMode;
+    },
+
+    isEnabled() {
+        return this.pastelMode;
+    }
+};
+
+// Make ColorPalette available globally
+window.ColorPalette = ColorPalette;

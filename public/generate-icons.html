@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BirdGame Icon Generator</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #1a1a2e; color: white; }
+        .icon-preview { display: inline-block; margin: 10px; text-align: center; }
+        canvas { border: 1px solid #333; margin-bottom: 5px; display: block; }
+        button { background: #48dbfb; border: none; padding: 15px 30px; font-size: 18px; cursor: pointer; margin: 20px 0; }
+        button:hover { background: #00d2d3; }
+        .status { margin-top: 20px; padding: 10px; background: #333; }
+    </style>
+</head>
+<body>
+    <h1>BirdGame PWA Icon Generator</h1>
+    <p>Click the button to generate and download all PWA icons.</p>
+    <button onclick="generateAllIcons()">Generate & Download Icons</button>
+    <div id="previews"></div>
+    <div id="status" class="status"></div>
+
+    <script>
+        const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+
+        function drawBirdIcon(ctx, size) {
+            const scale = size / 100;
+
+            // Background
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, size, size);
+
+            // Body
+            ctx.fillStyle = '#48dbfb';
+            ctx.beginPath();
+            ctx.ellipse(50 * scale, 55 * scale, 22 * scale, 16 * scale, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Head
+            ctx.beginPath();
+            ctx.arc(72 * scale, 45 * scale, 14 * scale, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Beak
+            ctx.fillStyle = '#feca57';
+            ctx.beginPath();
+            ctx.moveTo(84 * scale, 45 * scale);
+            ctx.lineTo(98 * scale, 48 * scale);
+            ctx.lineTo(84 * scale, 51 * scale);
+            ctx.closePath();
+            ctx.fill();
+
+            // Wing
+            ctx.fillStyle = '#ff6b6b';
+            ctx.beginPath();
+            ctx.ellipse(38 * scale, 52 * scale, 18 * scale, 10 * scale, -0.3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Tail
+            ctx.fillStyle = '#48dbfb';
+            ctx.beginPath();
+            ctx.moveTo(28 * scale, 55 * scale);
+            ctx.lineTo(8 * scale, 45 * scale);
+            ctx.lineTo(8 * scale, 65 * scale);
+            ctx.closePath();
+            ctx.fill();
+
+            // Eye white
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(76 * scale, 42 * scale, 5 * scale, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Eye pupil
+            ctx.fillStyle = 'black';
+            ctx.beginPath();
+            ctx.arc(77 * scale, 42 * scale, 2.5 * scale, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function generateIcon(size) {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            drawBirdIcon(ctx, size);
+            return canvas;
+        }
+
+        function downloadIcon(canvas, size) {
+            const link = document.createElement('a');
+            link.download = `icon-${size}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        function generateAllIcons() {
+            const previews = document.getElementById('previews');
+            const status = document.getElementById('status');
+            previews.innerHTML = '';
+            status.innerHTML = 'Generating icons...';
+
+            sizes.forEach((size, index) => {
+                setTimeout(() => {
+                    const canvas = generateIcon(size);
+
+                    // Preview
+                    const preview = document.createElement('div');
+                    preview.className = 'icon-preview';
+                    preview.appendChild(canvas);
+                    preview.innerHTML += `<div>${size}x${size}</div>`;
+                    previews.appendChild(preview);
+
+                    // Download
+                    downloadIcon(canvas, size);
+
+                    if (index === sizes.length - 1) {
+                        status.innerHTML = 'All icons generated! Move them to /public/icons/ folder.';
+                    }
+                }, index * 300);
+            });
+        }
+
+        // Show previews on load
+        window.onload = () => {
+            const previews = document.getElementById('previews');
+            sizes.forEach(size => {
+                const canvas = generateIcon(size);
+                const preview = document.createElement('div');
+                preview.className = 'icon-preview';
+                preview.appendChild(canvas);
+                preview.innerHTML += `<div>${size}x${size}</div>`;
+                previews.appendChild(preview);
+            });
+        };
+    </script>
+</body>
+</html>

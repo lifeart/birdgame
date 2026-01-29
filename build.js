@@ -104,9 +104,14 @@ async function bundleClientJS(publicDest) {
     // Client JS files in load order
     const clientFiles = [
         'audio.js',
+        'progression.js',
+        'rewards.js',
+        'effects.js',
         'bird.js',
         'world.js',
         'worms.js',
+        'flies.js',
+        'weather.js',
         'locations.js',
         'network.js',
         'ui.js',
@@ -142,7 +147,7 @@ async function bundleClientJS(publicDest) {
     let indexHtml = fs.readFileSync(indexPath, 'utf8');
 
     // Replace individual script tags with bundle
-    const scriptRegex = /<script src="js\/(audio|bird|world|worms|locations|network|ui|touch|game|main)\.js"><\/script>\s*/g;
+    const scriptRegex = /<script src="js\/(audio|progression|rewards|effects|bird|world|worms|flies|weather|locations|network|ui|touch|game|main)\.js"><\/script>\s*/g;
     indexHtml = indexHtml.replace(scriptRegex, '');
 
     // Add bundle script before closing body

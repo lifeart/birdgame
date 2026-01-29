@@ -8,10 +8,28 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#1a1a2e">
     <meta name="format-detection" content="telephone=no">
+    <meta name="description" content="A 3D multiplayer bird flying game - fly, collect worms, and compete!">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192.png">
+
+    <!-- Favicons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-96.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-72.png">
+
     <title>BirdGame - 3D Bird Flying Game</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+    <!-- Offline Indicator -->
+    <div id="offlineIndicator" class="offline-indicator">
+        You are offline. Some features may be limited.
+    </div>
+
     <!-- Main Menu -->
     <div id="menu" class="menu">
         <h1>BirdGame</h1>
@@ -64,6 +82,14 @@
                     <span>Village</span>
                     <small>Cozy houses, lots of green</small>
                 </div>
+                <div class="location-option" data-location="beach">
+                    <span>Beach</span>
+                    <small>Ocean, palm trees, sunshine</small>
+                </div>
+                <div class="location-option" data-location="mountain">
+                    <span>Mountain</span>
+                    <small>Peaks, cabin, waterfalls</small>
+                </div>
             </div>
         </div>
         <button id="startGame" class="start-btn">Start Game</button>
@@ -85,7 +111,7 @@
             <div id="playerList"></div>
         </div>
         <div id="controls-hint">
-            WASD - Move | Space - Up | Shift - Down | Q/E - Camera | V - View | C - Reset | R - Respawn | M - Mute | P - Weather | T - Time | Enter - Chat | Esc - Menu
+            WASD - Move | Space - Up | Shift - Down | Q/E - Camera | V - View | C - Reset | R - Respawn | M - Mute | P - Weather | T - Time | L - Pastel | Enter - Chat | Esc - Menu
         </div>
     </div>
 
@@ -147,10 +173,53 @@
                 <div class="location-option" data-location="village">
                     <span>Village</span>
                 </div>
+                <div class="location-option" data-location="beach">
+                    <span>Beach</span>
+                </div>
+                <div class="location-option" data-location="mountain">
+                    <span>Mountain</span>
+                </div>
             </div>
         </div>
         <button id="resumeGame" class="start-btn">Resume Game</button>
     </div>
+
+    <!-- Service Worker Registration & Offline Detection -->
+    <script>
+        // Offline detection
+        function updateOnlineStatus() {
+            const indicator = document.getElementById('offlineIndicator');
+            if (navigator.onLine) {
+                indicator.classList.remove('visible');
+            } else {
+                indicator.classList.add('visible');
+            }
+        }
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+        updateOnlineStatus();
+
+        // Register service worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then((registration) => {
+                        console.log('ServiceWorker registered:', registration.scope);
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    console.log('New version available! Refresh to update.');
+                                }
+                            });
+                        });
+                    })
+                    .catch((error) => {
+                        console.error('ServiceWorker registration failed:', error);
+                    });
+            });
+        }
+    </script>
 
     <!-- Three.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>

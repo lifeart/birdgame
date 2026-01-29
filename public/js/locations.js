@@ -291,5 +291,166 @@ const LOCATIONS = {
                 );
             }
         }
+    },
+
+    beach: {
+        name: 'Beach',
+        groundColor: 0xF5DEB3,
+        skyTopColor: 0x87CEEB,
+        skyBottomColor: 0xFFE4B5,
+        generate: (world) => {
+            world.createGround(0xF5DEB3, false);
+            world.createSandPatches();
+
+            // Ocean water on one side
+            world.createWaterPlane(-100, 0, 180, 180);
+
+            // Palm trees along beach
+            for (let i = -55; i <= 55; i += 14) {
+                world.createPalmTree(i, 18 + Math.random() * 8, 0.9 + Math.random() * 0.3);
+            }
+
+            // More palms scattered
+            for (let i = 0; i < 15; i++) {
+                const x = (Math.random() - 0.5) * 100;
+                const z = 30 + Math.random() * 50;
+                world.createPalmTree(x, z, 0.8 + Math.random() * 0.4);
+            }
+
+            // Beach umbrellas
+            const umbrellaPositions = [
+                {x: -35, z: 5}, {x: -15, z: 8}, {x: 10, z: 4},
+                {x: 30, z: 9}, {x: 50, z: 6}, {x: -50, z: 7}
+            ];
+            umbrellaPositions.forEach(pos => {
+                world.createBeachUmbrella(pos.x, pos.z, Math.random() * Math.PI);
+            });
+
+            // Beach chairs
+            for (let i = 0; i < 10; i++) {
+                world.createBeachChair(
+                    (Math.random() - 0.5) * 90,
+                    4 + Math.random() * 15,
+                    Math.random() * Math.PI
+                );
+            }
+
+            // Seashells scattered on sand
+            for (let i = 0; i < 35; i++) {
+                world.createSeashell(
+                    (Math.random() - 0.5) * 110,
+                    Math.random() * 25 + 3
+                );
+            }
+
+            // Rocks near water edge
+            for (let i = 0; i < 12; i++) {
+                world.createRock(
+                    (Math.random() - 0.5) * 130,
+                    -8 + Math.random() * 12,
+                    0.7 + Math.random() * 1.2
+                );
+            }
+
+            // Bushes at the back
+            for (let i = 0; i < 20; i++) {
+                world.createBush(
+                    (Math.random() - 0.5) * 150,
+                    60 + Math.random() * 30,
+                    0.9 + Math.random() * 0.6
+                );
+            }
+
+            // Fluffy beach clouds
+            for (let i = 0; i < 14; i++) {
+                world.createCloud(
+                    (Math.random() - 0.5) * 300,
+                    55 + Math.random() * 45,
+                    (Math.random() - 0.5) * 300,
+                    0.8 + Math.random() * 0.6
+                );
+            }
+        }
+    },
+
+    mountain: {
+        name: 'Mountain',
+        groundColor: 0x4A5D23,
+        skyTopColor: 0x4169E1,
+        skyBottomColor: 0x87CEEB,
+        generate: (world) => {
+            world.createGround(0x4A5D23, true);
+            world.createRockyTerrain();
+
+            // Mountain peaks in background
+            world.createMountainPeak(-75, -75, 2.2);
+            world.createMountainPeak(85, -65, 1.8);
+            world.createMountainPeak(-55, 85, 1.6);
+            world.createMountainPeak(70, 75, 1.4);
+            world.createMountainPeak(0, -90, 2.5);
+
+            // Dense pine forest
+            for (let i = 0; i < 55; i++) {
+                const x = (Math.random() - 0.5) * 140;
+                const z = (Math.random() - 0.5) * 140;
+                const distFromCenter = Math.sqrt(x * x + z * z);
+                if (distFromCenter > 18 && distFromCenter < 65) {
+                    world.createTree(x, z, 1 + Math.random() * 0.7, 'pine');
+                }
+            }
+
+            // Forest edge
+            for (let i = 0; i < 40; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const radius = 70 + Math.random() * 25;
+                world.createTree(
+                    Math.cos(angle) * radius,
+                    Math.sin(angle) * radius,
+                    1.1 + Math.random() * 0.6,
+                    'pine'
+                );
+            }
+
+            // Cabin
+            world.createCabin(0, 25);
+
+            // Waterfall
+            world.createWaterfall(-35, -25);
+
+            // Large rocks/boulders
+            for (let i = 0; i < 22; i++) {
+                world.createRock(
+                    (Math.random() - 0.5) * 130,
+                    (Math.random() - 0.5) * 130,
+                    1 + Math.random() * 1.8
+                );
+            }
+
+            // Snow patches
+            for (let i = 0; i < 18; i++) {
+                world.createSnowPatch(
+                    (Math.random() - 0.5) * 160,
+                    (Math.random() - 0.5) * 160
+                );
+            }
+
+            // Benches near cabin
+            world.createBench(-8, 35, Math.PI / 4);
+            world.createBench(8, 35, -Math.PI / 4);
+
+            // A few lamps
+            world.createStreetLamp(-12, 20);
+            world.createStreetLamp(12, 20);
+
+            // Mountain clouds - lower altitude
+            for (let i = 0; i < 10; i++) {
+                world.createCloud(
+                    (Math.random() - 0.5) * 280,
+                    45 + Math.random() * 30,
+                    (Math.random() - 0.5) * 280,
+                    0.65 + Math.random() * 0.5
+                );
+            }
+        }
     }
 };
