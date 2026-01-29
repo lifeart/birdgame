@@ -71,12 +71,54 @@
 
     <!-- Game UI -->
     <div id="gameUI" class="game-ui hidden">
-        <div id="score">Worms: 0</div>
-        <div id="playerList"></div>
+        <div class="top-bar">
+            <div class="left-stats">
+                <div id="score">Worms: 0</div>
+                <div id="level-display">
+                    <span id="level-number">Lv.1</span>
+                    <div id="xp-bar">
+                        <div id="xp-fill"></div>
+                    </div>
+                    <span id="xp-text">0 XP</span>
+                </div>
+            </div>
+            <div id="playerList"></div>
+        </div>
         <div id="controls-hint">
             WASD - Move | Space - Up | Shift - Down | Q/E - Camera | V - View | C - Reset | R - Respawn | M - Mute | P - Weather | T - Time | Enter - Chat | Esc - Menu
         </div>
     </div>
+
+    <!-- Daily Reward Popup -->
+    <div id="dailyRewardPopup" class="popup hidden">
+        <div class="popup-content daily-reward">
+            <h2>Daily Reward!</h2>
+            <div id="dailyRewardCalendar" class="reward-calendar"></div>
+            <div id="currentReward" class="current-reward"></div>
+            <div id="streakInfo" class="streak-info"></div>
+            <button id="claimRewardBtn" class="claim-btn">Claim Reward</button>
+            <button id="closeDailyPopup" class="close-btn">Close</button>
+        </div>
+    </div>
+
+    <!-- Level Up Popup -->
+    <div id="levelUpPopup" class="popup hidden">
+        <div class="popup-content level-up">
+            <h2>Level Up!</h2>
+            <div id="newLevel" class="new-level"></div>
+            <div id="levelReward" class="level-reward"></div>
+            <button id="closeLevelUp" class="close-btn">Awesome!</button>
+        </div>
+    </div>
+
+    <!-- Golden Worm Alert -->
+    <div id="goldenWormAlert" class="golden-alert hidden">
+        <span class="golden-icon">&#11088;</span>
+        <span>Golden Worm appeared!</span>
+    </div>
+
+    <!-- XP Gain Notification -->
+    <div id="xpNotification" class="xp-notification hidden"></div>
 
     <!-- Chat -->
     <div id="chat" class="chat hidden">
@@ -115,6 +157,9 @@
 
     <!-- Game Scripts -->
     <script src="js/audio.js"></script>
+    <script src="js/progression.js"></script>
+    <script src="js/rewards.js"></script>
+    <script src="js/effects.js"></script>
     <script src="js/bird.js"></script>
     <script src="js/world.js"></script>
     <script src="js/worms.js"></script>

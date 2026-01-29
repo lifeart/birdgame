@@ -711,6 +711,139 @@ class AudioManager {
         osc.stop(t + 0.15);
     }
 
+    // Golden Worm collect - special sparkly sound
+    playGoldenWorm() {
+        if (!this.enabled || !this.ctx) return;
+
+        const ctx = this.ctx;
+        const t = ctx.currentTime;
+
+        // Main golden chime
+        const notes = [1047, 1319, 1568, 2093]; // C6, E6, G6, C7
+
+        notes.forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            osc.type = 'sine';
+            const startTime = t + i * 0.06;
+            osc.frequency.setValueAtTime(freq, startTime);
+
+            const gain = ctx.createGain();
+            gain.gain.setValueAtTime(0, startTime);
+            gain.gain.linearRampToValueAtTime(this.volume * 0.4, startTime + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.3);
+
+            // Add shimmer with second oscillator
+            const osc2 = ctx.createOscillator();
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(freq * 2.01, startTime); // Slight detune for shimmer
+
+            const gain2 = ctx.createGain();
+            gain2.gain.setValueAtTime(0, startTime);
+            gain2.gain.linearRampToValueAtTime(this.volume * 0.15, startTime + 0.02);
+            gain2.gain.exponentialRampToValueAtTime(0.01, startTime + 0.25);
+
+            osc.connect(gain);
+            osc2.connect(gain2);
+            gain.connect(ctx.destination);
+            gain2.connect(ctx.destination);
+
+            osc.start(startTime);
+            osc2.start(startTime);
+            osc.stop(startTime + 0.35);
+            osc2.stop(startTime + 0.3);
+        });
+
+        // Sparkle overlay
+        for (let i = 0; i < 8; i++) {
+            const sparkle = ctx.createOscillator();
+            sparkle.type = 'sine';
+            const sparkleTime = t + 0.1 + Math.random() * 0.3;
+            const freq = 2000 + Math.random() * 2000;
+            sparkle.frequency.setValueAtTime(freq, sparkleTime);
+            sparkle.frequency.exponentialRampToValueAtTime(freq * 0.7, sparkleTime + 0.08);
+
+            const sparkleGain = ctx.createGain();
+            sparkleGain.gain.setValueAtTime(this.volume * 0.1, sparkleTime);
+            sparkleGain.gain.exponentialRampToValueAtTime(0.01, sparkleTime + 0.08);
+
+            sparkle.connect(sparkleGain);
+            sparkleGain.connect(ctx.destination);
+
+            sparkle.start(sparkleTime);
+            sparkle.stop(sparkleTime + 0.1);
+        }
+    }
+
+    // Level Up - triumphant fanfare
+    playLevelUp() {
+        if (!this.enabled || !this.ctx) return;
+
+        const ctx = this.ctx;
+        const t = ctx.currentTime;
+
+        // Victory fanfare
+        const melody = [
+            { freq: 523, time: 0, dur: 0.1 },      // C5
+            { freq: 659, time: 0.1, dur: 0.1 },    // E5
+            { freq: 784, time: 0.2, dur: 0.1 },    // G5
+            { freq: 1047, time: 0.35, dur: 0.15 }, // C6
+            { freq: 988, time: 0.5, dur: 0.1 },    // B5
+            { freq: 1047, time: 0.65, dur: 0.35 }  // C6 (sustained)
+        ];
+
+        melody.forEach(note => {
+            const osc = ctx.createOscillator();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(note.freq, t + note.time);
+
+            const gain = ctx.createGain();
+            gain.gain.setValueAtTime(0, t + note.time);
+            gain.gain.linearRampToValueAtTime(this.volume * 0.3, t + note.time + 0.02);
+            gain.gain.setValueAtTime(this.volume * 0.3, t + note.time + note.dur * 0.7);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + note.time + note.dur);
+
+            // Harmonics
+            const osc2 = ctx.createOscillator();
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(note.freq * 2, t + note.time);
+
+            const gain2 = ctx.createGain();
+            gain2.gain.setValueAtTime(0, t + note.time);
+            gain2.gain.linearRampToValueAtTime(this.volume * 0.15, t + note.time + 0.02);
+            gain2.gain.exponentialRampToValueAtTime(0.01, t + note.time + note.dur);
+
+            osc.connect(gain);
+            osc2.connect(gain2);
+            gain.connect(ctx.destination);
+            gain2.connect(ctx.destination);
+
+            osc.start(t + note.time);
+            osc2.start(t + note.time);
+            osc.stop(t + note.time + note.dur + 0.1);
+            osc2.stop(t + note.time + note.dur + 0.1);
+        });
+
+        // Victory sparkles
+        for (let i = 0; i < 10; i++) {
+            const sparkle = ctx.createOscillator();
+            sparkle.type = 'sine';
+            const sparkleTime = t + 0.3 + i * 0.08;
+            const freq = 1500 + Math.random() * 1500;
+            sparkle.frequency.setValueAtTime(freq, sparkleTime);
+            sparkle.frequency.exponentialRampToValueAtTime(freq * 0.6, sparkleTime + 0.1);
+
+            const sparkleGain = ctx.createGain();
+            sparkleGain.gain.setValueAtTime(this.volume * 0.12, sparkleTime);
+            sparkleGain.gain.exponentialRampToValueAtTime(0.01, sparkleTime + 0.1);
+
+            sparkle.connect(sparkleGain);
+            sparkleGain.connect(ctx.destination);
+
+            sparkle.start(sparkleTime);
+            sparkle.stop(sparkleTime + 0.12);
+        }
+    }
+
     // Toggle sound on/off
     toggle() {
         this.enabled = !this.enabled;

@@ -14,10 +14,17 @@ app.use(express.static(path.join(__dirname, 'public')));
 const players = new Map(); // ws -> player (active connections)
 const playerProfiles = new Map(); // normalized name -> { name, totalScore, lastSeen, bird }
 const worms = new Map();
+const goldenWorms = new Map(); // location -> goldenWorm or null
 const flies = new Map(); // Flying flies - give x2 points
 let wormIdCounter = 0;
 let flyIdCounter = 0;
 let playerIdCounter = 0;
+
+// Golden Worm settings
+const GOLDEN_WORM_POINTS = 10;
+const GOLDEN_WORM_SPAWN_INTERVAL = 300000; // 5 minutes
+const GOLDEN_WORM_DURATION = 60000; // 1 minute to catch
+const lastGoldenWormSpawn = new Map(); // location -> timestamp
 
 // Normalize player name for matching (case-insensitive, trimmed)
 function normalizeName(name) {
@@ -146,7 +153,50 @@ locations.forEach(location => {
         });
     }
     flies.set(location, locationFlies);
+
+    // Initialize golden worm state
+    goldenWorms.set(location, null);
+    lastGoldenWormSpawn.set(location, 0);
 });
+
+// Spawn golden worm helper
+function spawnGoldenWorm(location) {
+    const goldenWorm = {
+        id: 'golden_' + wormIdCounter++,
+        x: (Math.random() - 0.5) * 180,
+        y: 0.5,
+        z: (Math.random() - 0.5) * 180,
+        isGolden: true,
+        spawnTime: Date.now(),
+        collected: false
+    };
+    goldenWorms.set(location, goldenWorm);
+    lastGoldenWormSpawn.set(location, Date.now());
+
+    // Notify players in this location
+    broadcast({
+        type: 'worm_spawned',
+        worm: goldenWorm,
+        location: location
+    }, location);
+
+    console.log(`Golden Worm spawned in ${location}!`);
+
+    return goldenWorm;
+}
+
+// Remove expired golden worm
+function checkGoldenWormExpiry(location) {
+    const goldenWorm = goldenWorms.get(location);
+    if (goldenWorm && !goldenWorm.collected) {
+        if (Date.now() - goldenWorm.spawnTime > GOLDEN_WORM_DURATION) {
+            goldenWorms.set(location, null);
+            console.log(`Golden Worm expired in ${location}`);
+            return true;
+        }
+    }
+    return false;
+}
 
 // Respawn worms periodically
 setInterval(() => {
@@ -197,6 +247,28 @@ setInterval(() => {
         }
     });
 }, 10000); // Every 10 seconds
+
+// Golden Worm spawn check (every 30 seconds)
+setInterval(() => {
+    locations.forEach(location => {
+        // Check if golden worm expired
+        checkGoldenWormExpiry(location);
+
+        // Check if we should spawn a new golden worm
+        const currentGolden = goldenWorms.get(location);
+        const lastSpawn = lastGoldenWormSpawn.get(location) || 0;
+        const timeSinceLastSpawn = Date.now() - lastSpawn;
+
+        // Only spawn if no active golden worm and enough time has passed
+        if (!currentGolden && timeSinceLastSpawn >= GOLDEN_WORM_SPAWN_INTERVAL) {
+            // Check if there are players in this location
+            const playersInLocation = Array.from(players.values()).filter(p => p.location === location);
+            if (playersInLocation.length > 0) {
+                spawnGoldenWorm(location);
+            }
+        }
+    });
+}, 30000); // Check every 30 seconds
 
 // Clean up old profiles (not seen in 24 hours)
 setInterval(() => {
@@ -285,12 +357,19 @@ wss.on('connection', (ws) => {
                     };
                     players.set(ws, player);
 
+                    // Get all worms including golden worm for this location
+                    const locationWormsForWelcome = worms.get(player.location).filter(w => !w.collected);
+                    const goldenWormForWelcome = goldenWorms.get(player.location);
+                    if (goldenWormForWelcome && !goldenWormForWelcome.collected) {
+                        locationWormsForWelcome.push(goldenWormForWelcome);
+                    }
+
                     // Send player their ID and current game state
                     ws.send(JSON.stringify({
                         type: 'welcome',
                         playerId: playerId,
                         player: player,
-                        worms: worms.get(player.location).filter(w => !w.collected),
+                        worms: locationWormsForWelcome,
                         flies: flies.get(player.location).filter(f => !f.collected),
                         players: Array.from(players.values()).filter(p =>
                             p.id !== playerId && p.location === player.location
@@ -350,11 +429,31 @@ wss.on('connection', (ws) => {
                 case 'worm_collected':
                     const collector = players.get(ws);
                     if (collector) {
-                        const locationWorms = worms.get(collector.location);
-                        const worm = locationWorms.find(w => w.id === message.wormId && !w.collected);
+                        const isGolden = message.isGolden || false;
+                        let worm = null;
+                        let points = 1;
+
+                        if (isGolden) {
+                            // Check golden worm
+                            const goldenWorm = goldenWorms.get(collector.location);
+                            if (goldenWorm && goldenWorm.id === message.wormId && !goldenWorm.collected) {
+                                worm = goldenWorm;
+                                points = GOLDEN_WORM_POINTS;
+                                goldenWorm.collected = true;
+                                goldenWorms.set(collector.location, null);
+                                console.log(`${collector.name} collected the Golden Worm! (+${points} points)`);
+                            }
+                        } else {
+                            // Check regular worm
+                            const locationWorms = worms.get(collector.location);
+                            worm = locationWorms.find(w => w.id === message.wormId && !w.collected);
+                            if (worm) {
+                                worm.collected = true;
+                            }
+                        }
+
                         if (worm) {
-                            worm.collected = true;
-                            collector.score++;
+                            collector.score += points;
 
                             // Update profile with new high score
                             updateProfileScore(collector.name, collector.score);
@@ -364,7 +463,9 @@ wss.on('connection', (ws) => {
                                 wormId: worm.id,
                                 playerId: collector.id,
                                 playerName: collector.name,
-                                newScore: collector.score
+                                newScore: collector.score,
+                                isGolden: isGolden,
+                                points: points
                             }, collector.location);
 
                             // Broadcast updated leaderboard
@@ -418,11 +519,18 @@ wss.on('connection', (ws) => {
                             movingPlayer.y = 10;
                             movingPlayer.z = 0;
 
+                            // Get all worms including golden worm for new location
+                            const locationWormsForChange = worms.get(newLocation).filter(w => !w.collected);
+                            const goldenWormForChange = goldenWorms.get(newLocation);
+                            if (goldenWormForChange && !goldenWormForChange.collected) {
+                                locationWormsForChange.push(goldenWormForChange);
+                            }
+
                             // Send new location data
                             ws.send(JSON.stringify({
                                 type: 'location_changed',
                                 location: newLocation,
-                                worms: worms.get(newLocation).filter(w => !w.collected),
+                                worms: locationWormsForChange,
                                 flies: flies.get(newLocation).filter(f => !f.collected),
                                 players: Array.from(players.values()).filter(p =>
                                     p.id !== movingPlayer.id && p.location === newLocation

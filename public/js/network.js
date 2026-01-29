@@ -169,7 +169,8 @@ class NetworkManager {
                     wormId: message.wormId,
                     playerId: message.playerId,
                     playerName: message.playerName,
-                    newScore: message.newScore
+                    newScore: message.newScore,
+                    isGolden: message.isGolden || false
                 });
                 break;
 
@@ -237,11 +238,12 @@ class NetworkManager {
         });
     }
 
-    sendWormCollected(wormId) {
+    sendWormCollected(wormId, isGolden = false) {
         if (!this.isConnected()) return false;
         return this.send({
             type: 'worm_collected',
-            wormId: wormId
+            wormId: wormId,
+            isGolden: isGolden
         });
     }
 

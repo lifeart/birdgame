@@ -431,8 +431,8 @@ class UIManager {
         style.textContent = `
             #leaderboard {
                 position: fixed;
-                top: 60px;
-                left: 10px;
+                top: 120px;
+                left: 15px;
                 background: rgba(0, 0, 0, 0.7);
                 border-radius: 8px;
                 color: white;
@@ -449,10 +449,10 @@ class UIManager {
                 display: block;
             }
 
-            /* Mobile: position leaderboard on right, same line as chat */
+            /* Mobile: position leaderboard on right */
             @media (max-width: 768px) {
                 #leaderboard {
-                    top: 60px;
+                    top: 100px;
                     bottom: auto;
                     left: auto;
                     right: 10px;
@@ -661,6 +661,10 @@ class UIManager {
             clearTimeout(this.connectionStatusTimeout);
             this.connectionStatusTimeout = null;
         }
+        if (this.xpNotificationTimeout) {
+            clearTimeout(this.xpNotificationTimeout);
+            this.xpNotificationTimeout = null;
+        }
 
         // Remove dynamically created elements
         const notification = document.getElementById('camera-mode-notification');
@@ -678,5 +682,204 @@ class UIManager {
 
         // Clear callbacks
         this.callbacks = {};
+    }
+
+    // ==================== PROGRESSION UI ====================
+
+    updateLevelDisplay(level, xpProgress, xpToNext) {
+        const levelNumber = document.getElementById('level-number');
+        const xpFill = document.getElementById('xp-fill');
+        const xpText = document.getElementById('xp-text');
+
+        if (levelNumber) {
+            levelNumber.textContent = `Lv.${level}`;
+        }
+        if (xpFill) {
+            xpFill.style.width = `${xpProgress * 100}%`;
+        }
+        if (xpText) {
+            xpText.textContent = level >= 50 ? 'MAX' : `${xpToNext} XP`;
+        }
+    }
+
+    showXPNotification(amount, source) {
+        const notification = document.getElementById('xpNotification');
+        if (!notification) return;
+
+        // Clear previous timeout
+        if (this.xpNotificationTimeout) {
+            clearTimeout(this.xpNotificationTimeout);
+        }
+
+        notification.textContent = `+${amount} XP`;
+        notification.classList.remove('hidden');
+
+        // Remove and re-add to restart animation
+        notification.style.animation = 'none';
+        notification.offsetHeight; // Trigger reflow
+        notification.style.animation = null;
+
+        this.xpNotificationTimeout = setTimeout(() => {
+            notification.classList.add('hidden');
+        }, 2000);
+    }
+
+    showLevelUpPopup(oldLevel, newLevel, reward) {
+        const popup = document.getElementById('levelUpPopup');
+        const newLevelEl = document.getElementById('newLevel');
+        const levelRewardEl = document.getElementById('levelReward');
+        const closeBtn = document.getElementById('closeLevelUp');
+
+        if (!popup) return;
+
+        if (newLevelEl) {
+            newLevelEl.textContent = `Level ${newLevel}`;
+        }
+
+        if (levelRewardEl && reward) {
+            let icon = '🎉';
+            if (reward.type === 'trail') icon = '✨';
+            else if (reward.type === 'aura') icon = '🌟';
+            else if (reward.type === 'accessory') icon = '👑';
+            else if (reward.type === 'legendary') icon = '🏆';
+
+            levelRewardEl.innerHTML = `
+                <div class="reward-icon">${icon}</div>
+                <div>${reward.description}</div>
+            `;
+        } else if (levelRewardEl) {
+            levelRewardEl.innerHTML = '<div>Keep collecting to unlock rewards!</div>';
+        }
+
+        popup.classList.remove('hidden');
+
+        // Play level up sound
+        if (typeof audioManager !== 'undefined') {
+            audioManager.playLevelUp?.();
+        }
+
+        const closeHandler = () => {
+            popup.classList.add('hidden');
+            closeBtn.removeEventListener('click', closeHandler);
+        };
+
+        if (closeBtn) {
+            closeBtn.addEventListener('click', closeHandler);
+        }
+    }
+
+    // ==================== DAILY REWARDS UI ====================
+
+    showDailyRewardPopup(rewardsManager) {
+        const popup = document.getElementById('dailyRewardPopup');
+        const calendar = document.getElementById('dailyRewardCalendar');
+        const currentReward = document.getElementById('currentReward');
+        const streakInfo = document.getElementById('streakInfo');
+        const claimBtn = document.getElementById('claimRewardBtn');
+        const closeBtn = document.getElementById('closeDailyPopup');
+
+        if (!popup || !rewardsManager) return;
+
+        // Build calendar
+        const allRewards = rewardsManager.getAllRewardsInfo();
+        if (calendar) {
+            calendar.innerHTML = allRewards.map((reward, index) => {
+                let dayClass = 'day';
+                if (reward.isClaimed) dayClass += ' claimed';
+                else if (reward.isToday) dayClass += ' today';
+                else dayClass += ' future';
+
+                return `
+                    <div class="${dayClass}">
+                        <div class="day-number">Day ${reward.day}</div>
+                        <div class="day-reward">${reward.description}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Show current reward
+        const todayInfo = rewardsManager.getTodayRewardInfo();
+        if (currentReward) {
+            const multiplierText = todayInfo.multiplier > 1 ?
+                ` (x${todayInfo.multiplier.toFixed(1)} streak bonus!)` : '';
+            currentReward.innerHTML = `
+                <div>Today's Reward:</div>
+                <div style="font-size: 32px; margin: 10px 0;">${todayInfo.description}${multiplierText}</div>
+            `;
+        }
+
+        // Show streak info
+        if (streakInfo) {
+            const nextBonus = todayInfo.nextStreakBonus;
+            let streakText = `<span class="streak-count">${todayInfo.currentStreak}</span> day streak!`;
+            if (nextBonus) {
+                streakText += ` <br><small>${nextBonus.daysNeeded} more days for x${nextBonus.multiplier} bonus</small>`;
+            }
+            streakInfo.innerHTML = streakText;
+        }
+
+        // Update claim button
+        if (claimBtn) {
+            claimBtn.disabled = !todayInfo.canClaim;
+            claimBtn.textContent = todayInfo.canClaim ? 'Claim Reward!' : 'Already Claimed';
+        }
+
+        popup.classList.remove('hidden');
+
+        // Claim handler
+        const claimHandler = () => {
+            if (!rewardsManager.canClaim()) return;
+
+            const reward = rewardsManager.claimReward();
+            if (reward) {
+                // Apply reward
+                if (typeof progressionManager !== 'undefined') {
+                    const xpAmount = reward.finalAmount || reward.finalXP || 0;
+                    if (xpAmount > 0) {
+                        progressionManager.addXP(xpAmount, 'daily_reward');
+                    }
+                }
+
+                // Update UI
+                if (claimBtn) {
+                    claimBtn.disabled = true;
+                    claimBtn.textContent = 'Claimed!';
+                }
+
+                // Show notification
+                this.showXPNotification(reward.finalAmount || reward.finalXP, 'daily');
+
+                // Update calendar
+                this.showDailyRewardPopup(rewardsManager);
+            }
+        };
+
+        const closeHandler = () => {
+            popup.classList.add('hidden');
+            claimBtn?.removeEventListener('click', claimHandler);
+            closeBtn?.removeEventListener('click', closeHandler);
+        };
+
+        claimBtn?.addEventListener('click', claimHandler);
+        closeBtn?.addEventListener('click', closeHandler);
+    }
+
+    // ==================== GOLDEN WORM ALERT ====================
+
+    showGoldenWormAlert() {
+        const alert = document.getElementById('goldenWormAlert');
+        if (!alert) return;
+
+        alert.classList.remove('hidden');
+
+        // Play sound
+        if (typeof audioManager !== 'undefined') {
+            audioManager.playGoldenWorm?.();
+        }
+
+        setTimeout(() => {
+            alert.classList.add('hidden');
+        }, 3500);
     }
 }

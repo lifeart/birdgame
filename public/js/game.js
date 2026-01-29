@@ -65,6 +65,9 @@ class Game {
         this.collisionStartTime = null;
         this.collisionRespawnDelay = 5000; // 5 seconds
 
+        // Golden worm alert tracking
+        this.goldenWormAlertShown = false;
+
         this.clock = new THREE.Clock();
 
         // Touch controls (initialized after renderer)
@@ -129,8 +132,12 @@ class Game {
         this.wormManager = new WormManager(this.scene);
         this.flyManager = new FlyManager(this.scene);
         this.weatherSystem = new WeatherSystem(this.scene);
+        this.effectsManager = new EffectsManager(this.scene);
         this.network = new NetworkManager();
         this.ui = new UIManager();
+
+        // Setup progression callbacks
+        this.setupProgressionCallbacks();
 
         // Setup input handlers
         this.setupInput();
@@ -436,6 +443,43 @@ class Game {
         });
     }
 
+    setupProgressionCallbacks() {
+        // Update UI with initial progression state
+        if (typeof progressionManager !== 'undefined') {
+            const stats = progressionManager.getStats();
+            this.ui.updateLevelDisplay(stats.level, stats.xpProgress, stats.xpToNext);
+
+            // Setup level up callback
+            progressionManager.onLevelUp = (oldLevel, newLevel, reward) => {
+                this.ui.showLevelUpPopup(oldLevel, newLevel, reward);
+
+                // Apply visual rewards
+                if (reward && this.playerBird) {
+                    if (reward.type === 'trail' && reward.trailId) {
+                        this.effectsManager.createTrail('player', reward.trailId, this.playerBird.group);
+                    }
+                    if (reward.type === 'aura' && reward.auraId) {
+                        this.effectsManager.createAura('player', reward.auraId, this.playerBird.group);
+                    }
+                }
+            };
+
+            // Setup XP gain callback
+            progressionManager.onXPGain = (amount, source, totalXP, progress) => {
+                this.ui.showXPNotification(amount, source);
+                const stats = progressionManager.getStats();
+                this.ui.updateLevelDisplay(stats.level, stats.xpProgress, stats.xpToNext);
+            };
+        }
+
+        // Setup daily rewards callback
+        if (typeof dailyRewardsManager !== 'undefined') {
+            dailyRewardsManager.onRewardClaimed = (reward) => {
+                console.log('Daily reward claimed:', reward);
+            };
+        }
+    }
+
     setupNetworkCallbacks() {
         this.network.on('playerJoined', (player) => {
             this.addOtherPlayer(player);
@@ -475,7 +519,9 @@ class Game {
         });
 
         this.network.on('wormCollected', (data) => {
+            const isGolden = data.isGolden || false;
             this.wormManager.removeWorm(data.wormId);
+
             if (data.playerId === this.network.playerId) {
                 this.score = data.newScore;
                 this.ui.updateScore(this.score);
@@ -483,7 +529,25 @@ class Game {
                 if (this.playerBird) {
                     this.playerBird.setWormCount(this.score);
                 }
-                audioManager.playWormCollect();
+
+                // Add XP based on worm type
+                if (typeof progressionManager !== 'undefined') {
+                    const xp = isGolden ?
+                        progressionManager.getXPForAction('goldenWorm') :
+                        progressionManager.getXPForAction('worm');
+                    progressionManager.addXP(xp, isGolden ? 'goldenWorm' : 'worm');
+                }
+
+                // Create collection burst effect
+                if (this.effectsManager && this.playerBird) {
+                    this.effectsManager.createCollectionBurst(this.playerBird.position, isGolden);
+                }
+
+                if (isGolden) {
+                    audioManager.playGoldenWorm?.() || audioManager.playWormCollect();
+                } else {
+                    audioManager.playWormCollect();
+                }
             }
             const player = this.otherPlayers.get(data.playerId);
             if (player) {
@@ -507,7 +571,19 @@ class Game {
                 if (this.playerBird) {
                     this.playerBird.setWormCount(this.score);
                 }
-                audioManager.playWormCollect(); // Use same sound for now
+
+                // Add XP for fly (more than worm)
+                if (typeof progressionManager !== 'undefined') {
+                    const xp = progressionManager.getXPForAction('fly');
+                    progressionManager.addXP(xp, 'fly');
+                }
+
+                // Create collection burst effect
+                if (this.effectsManager && this.playerBird) {
+                    this.effectsManager.createCollectionBurst(this.playerBird.position, false);
+                }
+
+                audioManager.playWormCollect();
             }
             const player = this.otherPlayers.get(data.playerId);
             if (player) {
@@ -622,6 +698,16 @@ class Game {
                 this.ui.addChatMessage(null, `Welcome back! Your score of ${this.score} has been restored.`, true);
             }
 
+            // Apply unlocked visual effects
+            this.applyUnlockedEffects();
+
+            // Check for daily rewards
+            if (typeof dailyRewardsManager !== 'undefined' && dailyRewardsManager.canClaim()) {
+                setTimeout(() => {
+                    this.ui.showDailyRewardPopup(dailyRewardsManager);
+                }, 1000);
+            }
+
             this.isRunning = true;
             this.animate();
 
@@ -629,6 +715,32 @@ class Game {
             console.error('Failed to connect:', error);
             this.ui.showConnectionStatus('failed', { reason: error.message });
             alert('Failed to connect to server: ' + error.message);
+        }
+    }
+
+    applyUnlockedEffects() {
+        if (typeof progressionManager === 'undefined' || !this.playerBird || !this.effectsManager) {
+            return;
+        }
+
+        // Apply unlocked trails
+        const unlockedTrails = progressionManager.getUnlockedByType('trail');
+        if (unlockedTrails.length > 0) {
+            // Use the most recently unlocked trail
+            const latestTrail = unlockedTrails[unlockedTrails.length - 1];
+            if (latestTrail.trailId) {
+                this.effectsManager.createTrail('player', latestTrail.trailId, this.playerBird.group);
+            }
+        }
+
+        // Apply unlocked auras
+        const unlockedAuras = progressionManager.getUnlockedByType('aura');
+        if (unlockedAuras.length > 0) {
+            // Use the most recently unlocked aura
+            const latestAura = unlockedAuras[unlockedAuras.length - 1];
+            if (latestAura.auraId) {
+                this.effectsManager.createAura('player', latestAura.auraId, this.playerBird.group);
+            }
         }
     }
 
@@ -821,8 +933,11 @@ class Game {
             this.playerBird.position,
             radius
         );
-        collectedWorms.forEach(wormId => {
-            this.network.sendWormCollected(wormId);
+        collectedWorms.forEach(wormData => {
+            // Handle both old format (just ID) and new format (object with id, isGolden, points)
+            const wormId = typeof wormData === 'object' ? wormData.id : wormData;
+            const isGolden = typeof wormData === 'object' ? wormData.isGolden : false;
+            this.network.sendWormCollected(wormId, isGolden);
         });
 
         // Check fly collection
@@ -839,6 +954,25 @@ class Game {
         this.flyManager.update(time);
         this.world.update(time);
         this.weatherSystem.update(delta, time);
+
+        // Update visual effects
+        if (this.effectsManager) {
+            this.effectsManager.update(delta);
+            this.effectsManager.updateParticles(delta);
+
+            // Update player trail if exists
+            if (this.playerBird && this.effectsManager.trails.has('player')) {
+                this.effectsManager.updateTrail('player', this.playerBird.position, this.playerBird.velocity);
+            }
+        }
+
+        // Check for golden worm spawn (client-side visual indicator)
+        if (this.wormManager.hasGoldenWorm() && !this.goldenWormAlertShown) {
+            this.ui.showGoldenWormAlert();
+            this.goldenWormAlertShown = true;
+        } else if (!this.wormManager.hasGoldenWorm()) {
+            this.goldenWormAlertShown = false;
+        }
 
         // Update other players
         this.otherPlayers.forEach(player => {
