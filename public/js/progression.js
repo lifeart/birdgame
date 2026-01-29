@@ -159,7 +159,7 @@ class ProgressionManager {
 
                 // Validate that currentXP matches currentLevel
                 const minXPForLevel = this.getXPForLevel(this.currentLevel);
-                const maxXPForLevel = this.getXPForLevel(this.currentLevel + 1);
+                const maxXPForLevel = this.currentLevel >= 50 ? Infinity : this.getXPForLevel(this.currentLevel + 1);
                 if (this.currentXP < minXPForLevel || this.currentXP >= maxXPForLevel) {
                     // Recalculate level from XP
                     this.currentLevel = 1;

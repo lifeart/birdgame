@@ -358,13 +358,14 @@ class UIManager {
             indicator.id = 'connection-status';
             indicator.style.cssText = `
                 position: fixed;
-                top: 10px;
-                right: 10px;
+                bottom: 10px;
+                left: 50%;
+                transform: translateX(-50%);
                 padding: 8px 16px;
                 border-radius: 4px;
                 font-size: 12px;
                 font-weight: bold;
-                z-index: 1000;
+                z-index: 80;
                 transition: opacity 0.3s, background 0.3s;
             `;
             document.body.appendChild(indicator);
@@ -449,13 +450,13 @@ class UIManager {
                 display: block;
             }
 
-            /* Mobile: position leaderboard on right */
+            /* Mobile: position leaderboard on right side, below top UI */
             @media (max-width: 768px) {
                 #leaderboard {
-                    top: 100px;
-                    bottom: auto;
+                    top: auto;
+                    bottom: 60px;
                     left: auto;
-                    right: 10px;
+                    right: 60px;
                     min-width: 140px;
                     max-width: 160px;
                     font-size: 11px;
@@ -484,6 +485,22 @@ class UIManager {
                 .leaderboard-rank {
                     width: 20px;
                     font-size: 11px;
+                }
+            }
+
+            /* Landscape mode on phones */
+            @media (max-height: 500px) and (orientation: landscape) {
+                #leaderboard {
+                    top: auto;
+                    bottom: 10px;
+                    left: 50%;
+                    right: auto;
+                    transform: translateX(-50%);
+                    max-height: 100px;
+                }
+
+                .leaderboard-content {
+                    max-height: 60px;
                 }
             }
 

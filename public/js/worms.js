@@ -13,10 +13,12 @@ class WormManager {
 
     clear() {
         this.worms.forEach(worm => {
+            this.disposeWormMesh(worm.mesh);
             this.scene.remove(worm.mesh);
         });
         this.worms.clear();
         this.goldenWorms.forEach(worm => {
+            this.disposeGoldenWormMesh(worm.mesh);
             this.scene.remove(worm.mesh);
         });
         this.goldenWorms.clear();
@@ -247,6 +249,7 @@ class WormManager {
 
             // Check if golden worm expired
             if (Date.now() - worm.spawnTime > this.goldenWormDuration) {
+                this.disposeGoldenWormMesh(worm.mesh);
                 this.scene.remove(worm.mesh);
                 this.goldenWorms.delete(id);
             }

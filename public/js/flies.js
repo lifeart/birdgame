@@ -7,6 +7,7 @@ class FlyManager {
 
     clear() {
         this.flies.forEach(fly => {
+            this.disposeFlyMesh(fly.mesh);
             this.scene.remove(fly.mesh);
         });
         this.flies.clear();
@@ -185,9 +186,20 @@ class FlyManager {
     removeFly(flyId) {
         const fly = this.flies.get(flyId);
         if (fly) {
+            this.disposeFlyMesh(fly.mesh);
             this.scene.remove(fly.mesh);
             this.flies.delete(flyId);
         }
+    }
+
+    disposeFlyMesh(mesh) {
+        mesh.traverse((child) => {
+            if (child.geometry) child.geometry.dispose();
+            if (child.material) {
+                if (child.material.map) child.material.map.dispose();
+                child.material.dispose();
+            }
+        });
     }
 
     update(time) {

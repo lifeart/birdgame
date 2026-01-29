@@ -14,7 +14,7 @@ class TouchControls {
             currentY: 0,
             element: null,
             knob: null,
-            maxRadius: 50
+            maxRadius: 42
         };
 
         // Camera touch state
@@ -108,8 +108,10 @@ class TouchControls {
                 right: 0;
                 bottom: 0;
                 pointer-events: none;
-                z-index: 1000;
+                z-index: 90;
                 touch-action: none;
+                /* Safe area for notched devices */
+                padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
             }
 
             #touch-controls.active {
@@ -123,36 +125,40 @@ class TouchControls {
 
             .touch-zone-left {
                 left: 0;
-                bottom: 0;
-                width: 40%;
-                height: 50%;
+                bottom: env(safe-area-inset-bottom, 0);
+                width: 35%;
+                height: 45%;
                 display: flex;
                 align-items: center;
                 justify-content: center;
+                padding-left: 10px;
+                padding-bottom: 60px;
             }
 
             .touch-zone-right {
                 right: 0;
-                bottom: 0;
-                width: 30%;
-                height: 50%;
+                bottom: env(safe-area-inset-bottom, 0);
+                width: 25%;
+                height: 45%;
                 display: flex;
                 flex-direction: column;
                 align-items: center;
                 justify-content: center;
-                gap: 20px;
+                gap: 15px;
+                padding-right: 10px;
+                padding-bottom: 20px;
             }
 
             .touch-zone-top {
-                top: 10px;
+                top: 70px;
                 right: 10px;
                 display: flex;
-                gap: 10px;
+                gap: 8px;
             }
 
             .joystick {
-                width: 120px;
-                height: 120px;
+                width: 100px;
+                height: 100px;
                 border-radius: 50%;
                 background: rgba(255, 255, 255, 0.08);
                 border: 2px solid rgba(255, 255, 255, 0.15);
@@ -165,8 +171,8 @@ class TouchControls {
             }
 
             .joystick-knob {
-                width: 50px;
-                height: 50px;
+                width: 42px;
+                height: 42px;
                 border-radius: 50%;
                 background: rgba(255, 255, 255, 0.25);
                 border: 1px solid rgba(255, 255, 255, 0.4);
@@ -185,13 +191,13 @@ class TouchControls {
             }
 
             .touch-btn {
-                width: 70px;
-                height: 70px;
+                width: 60px;
+                height: 60px;
                 border-radius: 50%;
                 border: 1px solid rgba(255, 255, 255, 0.2);
                 background: rgba(255, 255, 255, 0.08);
                 color: rgba(255, 255, 255, 0.85);
-                font-size: 14px;
+                font-size: 12px;
                 font-weight: 500;
                 display: flex;
                 flex-direction: column;
@@ -294,6 +300,113 @@ class TouchControls {
             .menu:not(.hidden) ~ #touch-controls {
                 pointer-events: none;
                 opacity: 0.3;
+            }
+
+            /* Hide touch controls when popup is visible */
+            .popup:not(.hidden) ~ #touch-controls {
+                pointer-events: none;
+                opacity: 0;
+            }
+
+            /* Small phone adjustments */
+            @media (max-width: 400px) {
+                .touch-zone-left {
+                    width: 30%;
+                    padding-bottom: 50px;
+                }
+
+                .touch-zone-right {
+                    width: 22%;
+                    gap: 10px;
+                }
+
+                .joystick {
+                    width: 85px;
+                    height: 85px;
+                }
+
+                .joystick-knob {
+                    width: 36px;
+                    height: 36px;
+                }
+
+                .touch-btn {
+                    width: 52px;
+                    height: 52px;
+                    font-size: 11px;
+                }
+
+                .touch-btn .btn-icon {
+                    font-size: 18px;
+                }
+
+                .touch-btn .btn-label {
+                    font-size: 8px;
+                }
+
+                .touch-btn-small {
+                    width: 35px;
+                    height: 35px;
+                    font-size: 15px;
+                }
+
+                .touch-zone-top {
+                    top: 60px;
+                    gap: 6px;
+                }
+            }
+
+            /* Landscape mode adjustments */
+            @media (max-height: 450px) and (orientation: landscape) {
+                .touch-zone-left {
+                    height: 60%;
+                    width: 25%;
+                    padding-bottom: 10px;
+                }
+
+                .touch-zone-right {
+                    height: 60%;
+                    width: 18%;
+                    gap: 8px;
+                    padding-bottom: 5px;
+                }
+
+                .joystick {
+                    width: 80px;
+                    height: 80px;
+                }
+
+                .joystick-knob {
+                    width: 34px;
+                    height: 34px;
+                }
+
+                .touch-btn {
+                    width: 48px;
+                    height: 48px;
+                }
+
+                .touch-btn .btn-icon {
+                    font-size: 16px;
+                }
+
+                .touch-btn .btn-label {
+                    display: none;
+                }
+
+                .touch-zone-top {
+                    top: 5px;
+                }
+
+                .touch-btn-small {
+                    width: 32px;
+                    height: 32px;
+                    font-size: 14px;
+                }
+
+                .touch-hint {
+                    display: none;
+                }
             }
         `;
         document.head.appendChild(style);
