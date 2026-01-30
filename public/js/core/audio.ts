@@ -1,4 +1,10 @@
 // Audio Manager - Funny synthesized sounds using Web Audio API
+import {
+    AUDIO_FLAP_COOLDOWN_MS,
+    AUDIO_COLLISION_COOLDOWN_MS,
+    AUDIO_DEFAULT_VOLUME,
+    AUDIO_FLAP_BUFFER_POOL_SIZE
+} from './constants.ts';
 
 // Extend Window interface for webkit AudioContext
 declare global {
@@ -10,18 +16,18 @@ declare global {
 export class AudioManager {
     private ctx: AudioContext | null = null;
     private enabled: boolean = true;
-    private volume: number = 0.3;
+    private volume: number = AUDIO_DEFAULT_VOLUME;
     private initialized: boolean = false;
 
     // Cooldowns to prevent sound spam
     private lastFlapTime: number = 0;
-    private flapCooldown: number = 150;
+    private flapCooldown: number = AUDIO_FLAP_COOLDOWN_MS;
     private lastCollisionTime: number = 0;
-    private collisionCooldown: number = 500;
+    private collisionCooldown: number = AUDIO_COLLISION_COOLDOWN_MS;
 
     // Pre-created buffer pools for frequently-used sounds
     private flapBufferPool: AudioBuffer[] = [];
-    private flapBufferPoolSize: number = 5;
+    private flapBufferPoolSize: number = AUDIO_FLAP_BUFFER_POOL_SIZE;
     private flapBufferIndex: number = 0;
 
     init(): void {

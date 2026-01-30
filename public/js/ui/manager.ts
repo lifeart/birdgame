@@ -3,73 +3,60 @@ import { BIRD_TYPES, type BirdTypeName } from '../bird/types.ts';
 import { AudioManager } from '../core/audio.ts';
 import { ProgressionManager } from '../core/progression.ts';
 import { DailyRewardsManager } from '../core/rewards.ts';
+import {
+    STORAGE_KEY_PLAYER_NAME,
+    STORAGE_KEY_BIRD_TYPE,
+    STORAGE_KEY_LOCATION
+} from '../core/constants.ts';
+import { generateRandomName } from '../shared/constants.ts';
 
-// Random name generator
-const NAME_ADJECTIVES = [
-    'Swift', 'Brave', 'Mighty', 'Sneaky', 'Happy', 'Lucky', 'Wild', 'Crazy',
-    'Flying', 'Speedy', 'Fluffy', 'Tiny', 'Giant', 'Golden', 'Silver', 'Royal',
-    'Cosmic', 'Thunder', 'Storm', 'Fire', 'Ice', 'Shadow', 'Sunny', 'Starry',
-    'Noble', 'Fierce', 'Gentle', 'Mystic', 'Ancient', 'Young', 'Bold', 'Shy'
-];
-
-const NAME_NOUNS = [
-    'Bird', 'Eagle', 'Hawk', 'Falcon', 'Owl', 'Robin', 'Sparrow', 'Finch',
-    'Wing', 'Feather', 'Talon', 'Beak', 'Nest', 'Sky', 'Cloud', 'Wind',
-    'Flyer', 'Glider', 'Swooper', 'Hunter', 'Seeker', 'Watcher', 'Dancer', 'Singer',
-    'Pilot', 'Ace', 'Captain', 'Chief', 'Hero', 'Legend', 'Star', 'Champ'
-];
-
-export function generateRandomName(): string {
-    const adj = NAME_ADJECTIVES[Math.floor(Math.random() * NAME_ADJECTIVES.length)];
-    const noun = NAME_NOUNS[Math.floor(Math.random() * NAME_NOUNS.length)];
-    const num = Math.floor(Math.random() * 100);
-    return `${adj}${noun}${num}`;
-}
+// Re-export for backward compatibility
+export { generateRandomName };
 
 export function loadSavedName(): string {
     try {
-        return localStorage.getItem('birdgame_playerName') || '';
-    } catch (e) {
+        return localStorage.getItem(STORAGE_KEY_PLAYER_NAME) || '';
+    } catch {
         return '';
     }
 }
 
 export function saveName(name: string): void {
     try {
-        localStorage.setItem('birdgame_playerName', name);
-    } catch (e) {
+        localStorage.setItem(STORAGE_KEY_PLAYER_NAME, name);
+    } catch {
         // localStorage not available
     }
 }
 
 export function loadSavedBird(): string {
     try {
-        return localStorage.getItem('birdgame_birdType') || 'sparrow';
-    } catch (e) {
+        return localStorage.getItem(STORAGE_KEY_BIRD_TYPE) || 'sparrow';
+    } catch {
         return 'sparrow';
     }
 }
 
 export function saveBird(bird: string): void {
     try {
-        localStorage.setItem('birdgame_birdType', bird);
-    } catch (e) {
+        localStorage.setItem(STORAGE_KEY_BIRD_TYPE, bird);
+    } catch {
         // localStorage not available
     }
 }
 
 export function loadSavedLocation(): string {
     try {
-        return localStorage.getItem('birdgame_location') || 'city';
-    } catch (e) {
+        return localStorage.getItem(STORAGE_KEY_LOCATION) || 'city';
+    } catch {
         return 'city';
     }
 }
 
 export function saveLocation(location: string): void {
     try {
-        localStorage.setItem('birdgame_location', location);
-    } catch (e) {
+        localStorage.setItem(STORAGE_KEY_LOCATION, location);
+    } catch {
         // localStorage not available
     }
 }

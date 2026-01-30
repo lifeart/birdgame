@@ -1,5 +1,7 @@
 // Core module exports
 export { AudioManager } from './audio.ts';
+export * from './audio/sound-recipes.ts';
+export * from './constants.ts';
 export {
     ProgressionManager,
     type LevelReward,

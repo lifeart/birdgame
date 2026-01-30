@@ -261,11 +261,17 @@ export class NetworkManager {
 
     private validatePlayerMoved(message: Record<string, unknown>): boolean {
         if (!this.validateMessage(message, ['playerId', 'x', 'y', 'z', 'rotationY'])) return false;
+
+        const isValidCoord = (n: unknown): n is number =>
+            typeof n === 'number' && isFinite(n) && n >= -500 && n <= 500;
+        const isValidRotation = (n: unknown): n is number =>
+            typeof n === 'number' && isFinite(n);
+
         return typeof message.playerId === 'string' &&
-               typeof message.x === 'number' && !isNaN(message.x) &&
-               typeof message.y === 'number' && !isNaN(message.y) &&
-               typeof message.z === 'number' && !isNaN(message.z) &&
-               typeof message.rotationY === 'number' && !isNaN(message.rotationY);
+               isValidCoord(message.x) &&
+               isValidCoord(message.y) &&
+               isValidCoord(message.z) &&
+               isValidRotation(message.rotationY);
     }
 
     private validateWormCollected(message: Record<string, unknown>): boolean {

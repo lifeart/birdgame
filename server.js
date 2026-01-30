@@ -2,6 +2,33 @@ const express = require('express');
 const { WebSocketServer } = require('ws');
 const http = require('http');
 const path = require('path');
+const {
+    LOCATIONS,
+    VALID_BIRDS,
+    WORMS_PER_LOCATION,
+    MIN_WORMS_BEFORE_RESPAWN,
+    WORM_RESPAWN_INTERVAL_MS,
+    FLIES_PER_LOCATION_MIN,
+    FLIES_PER_LOCATION_MAX,
+    MIN_FLIES_BEFORE_RESPAWN,
+    FLY_RESPAWN_INTERVAL_MS,
+    FLY_HEIGHT_MIN,
+    FLY_HEIGHT_MAX,
+    FLY_POINTS,
+    GOLDEN_WORM_POINTS,
+    GOLDEN_WORM_SPAWN_INTERVAL_MS,
+    GOLDEN_WORM_DURATION_MS,
+    GOLDEN_WORM_CHECK_INTERVAL_MS,
+    WORLD_SIZE,
+    SPAWN_HEIGHT,
+    LEADERBOARD_SIZE,
+    LEADERBOARD_DEBOUNCE_MS,
+    PROFILE_EXPIRY_MS,
+    PROFILE_CLEANUP_INTERVAL_MS,
+    MAX_NAME_LENGTH,
+    MAX_CHAT_LENGTH,
+    generateRandomName
+} = require('./shared/constants.js');
 
 const app = express();
 const server = http.createServer(app);
@@ -22,8 +49,7 @@ let flyIdCounter = 0;
 let playerIdCounter = 0;
 
 // Initialize location sets
-const locations = ['city', 'park', 'village', 'beach', 'mountain'];
-locations.forEach(loc => playersByLocation.set(loc, new Set()));
+LOCATIONS.forEach(loc => playersByLocation.set(loc, new Set()));
 
 // Helper to add player to location index
 function addPlayerToLocation(ws, location) {
@@ -43,10 +69,7 @@ function movePlayerLocation(ws, oldLocation, newLocation) {
     addPlayerToLocation(ws, newLocation);
 }
 
-// Golden Worm settings
-const GOLDEN_WORM_POINTS = 10;
-const GOLDEN_WORM_SPAWN_INTERVAL = 300000; // 5 minutes
-const GOLDEN_WORM_DURATION = 60000; // 1 minute to catch
+// Golden Worm state
 const lastGoldenWormSpawn = new Map(); // location -> timestamp
 
 // Normalize player name for matching (case-insensitive, trimmed)
@@ -98,12 +121,12 @@ function updateProfileScore(name, score) {
     }
 }
 
-// Get leaderboard (top 10)
+// Get leaderboard
 function getLeaderboard() {
     const allProfiles = Array.from(playerProfiles.values());
     return allProfiles
         .sort((a, b) => b.totalScore - a.totalScore)
-        .slice(0, 10)
+        .slice(0, LEADERBOARD_SIZE)
         .map((p, index) => ({
             rank: index + 1,
             name: p.name,
@@ -123,54 +146,31 @@ function isNameInUse(name, excludeWs = null) {
     return false;
 }
 
-// Valid bird types
-const validBirds = ['sparrow', 'pigeon', 'crow', 'hummingbird', 'penguin'];
-
-// Random name generator (same as client for consistency)
-const NAME_ADJECTIVES = [
-    'Swift', 'Brave', 'Mighty', 'Sneaky', 'Happy', 'Lucky', 'Wild', 'Crazy',
-    'Flying', 'Speedy', 'Fluffy', 'Tiny', 'Giant', 'Golden', 'Silver', 'Royal',
-    'Cosmic', 'Thunder', 'Storm', 'Fire', 'Ice', 'Shadow', 'Sunny', 'Starry',
-    'Noble', 'Fierce', 'Gentle', 'Mystic', 'Ancient', 'Young', 'Bold', 'Shy'
-];
-
-const NAME_NOUNS = [
-    'Bird', 'Eagle', 'Hawk', 'Falcon', 'Owl', 'Robin', 'Sparrow', 'Finch',
-    'Wing', 'Feather', 'Talon', 'Beak', 'Nest', 'Sky', 'Cloud', 'Wind',
-    'Flyer', 'Glider', 'Swooper', 'Hunter', 'Seeker', 'Watcher', 'Dancer', 'Singer',
-    'Pilot', 'Ace', 'Captain', 'Chief', 'Hero', 'Legend', 'Star', 'Champ'
-];
-
-function generateRandomName() {
-    const adj = NAME_ADJECTIVES[Math.floor(Math.random() * NAME_ADJECTIVES.length)];
-    const noun = NAME_NOUNS[Math.floor(Math.random() * NAME_NOUNS.length)];
-    const num = Math.floor(Math.random() * 1000);
-    return `${adj}${noun}${num}`;
-}
+// Note: VALID_BIRDS and generateRandomName imported from shared/constants.js
 
 // Generate initial worms for each location
-locations.forEach(location => {
+LOCATIONS.forEach(location => {
     const locationWorms = [];
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < WORMS_PER_LOCATION; i++) {
         locationWorms.push({
             id: wormIdCounter++,
-            x: (Math.random() - 0.5) * 200,
+            x: (Math.random() - 0.5) * WORLD_SIZE,
             y: 0.5,
-            z: (Math.random() - 0.5) * 200,
+            z: (Math.random() - 0.5) * WORLD_SIZE,
             collected: false
         });
     }
     worms.set(location, locationWorms);
 
-    // Generate initial flies (3-5 per location) - flying, give x2 points
+    // Generate initial flies - flying, give x2 points
     const locationFlies = [];
-    const flyCount = 3 + Math.floor(Math.random() * 3); // 3-5 flies
+    const flyCount = FLIES_PER_LOCATION_MIN + Math.floor(Math.random() * (FLIES_PER_LOCATION_MAX - FLIES_PER_LOCATION_MIN + 1));
     for (let i = 0; i < flyCount; i++) {
         locationFlies.push({
             id: flyIdCounter++,
-            x: (Math.random() - 0.5) * 180,
-            y: 8 + Math.random() * 15, // Flying height 8-23
-            z: (Math.random() - 0.5) * 180,
+            x: (Math.random() - 0.5) * (WORLD_SIZE - 20),
+            y: FLY_HEIGHT_MIN + Math.random() * (FLY_HEIGHT_MAX - FLY_HEIGHT_MIN),
+            z: (Math.random() - 0.5) * (WORLD_SIZE - 20),
             collected: false
         });
     }
@@ -185,9 +185,9 @@ locations.forEach(location => {
 function spawnGoldenWorm(location) {
     const goldenWorm = {
         id: 'golden_' + wormIdCounter++,
-        x: (Math.random() - 0.5) * 180,
+        x: (Math.random() - 0.5) * (WORLD_SIZE - 20),
         y: 0.5,
-        z: (Math.random() - 0.5) * 180,
+        z: (Math.random() - 0.5) * (WORLD_SIZE - 20),
         isGolden: true,
         spawnTime: Date.now(),
         collected: false
@@ -211,7 +211,7 @@ function spawnGoldenWorm(location) {
 function checkGoldenWormExpiry(location) {
     const goldenWorm = goldenWorms.get(location);
     if (goldenWorm && !goldenWorm.collected) {
-        if (Date.now() - goldenWorm.spawnTime > GOLDEN_WORM_DURATION) {
+        if (Date.now() - goldenWorm.spawnTime > GOLDEN_WORM_DURATION_MS) {
             goldenWorms.set(location, null);
             console.log(`Golden Worm expired in ${location}`);
             return true;
@@ -222,15 +222,15 @@ function checkGoldenWormExpiry(location) {
 
 // Respawn worms periodically
 setInterval(() => {
-    locations.forEach(location => {
+    LOCATIONS.forEach(location => {
         const locationWorms = worms.get(location);
         const activeWorms = locationWorms.filter(w => !w.collected);
-        if (activeWorms.length < 15) {
+        if (activeWorms.length < MIN_WORMS_BEFORE_RESPAWN) {
             const newWorm = {
                 id: wormIdCounter++,
-                x: (Math.random() - 0.5) * 200,
+                x: (Math.random() - 0.5) * WORLD_SIZE,
                 y: 0.5,
-                z: (Math.random() - 0.5) * 200,
+                z: (Math.random() - 0.5) * WORLD_SIZE,
                 collected: false
             };
             locationWorms.push(newWorm);
@@ -243,19 +243,19 @@ setInterval(() => {
             }, location);
         }
     });
-}, 5000);
+}, WORM_RESPAWN_INTERVAL_MS);
 
-// Respawn flies periodically (less frequent, keep 3-5 per location)
+// Respawn flies periodically
 setInterval(() => {
-    locations.forEach(location => {
+    LOCATIONS.forEach(location => {
         const locationFlies = flies.get(location);
         const activeFlies = locationFlies.filter(f => !f.collected);
-        if (activeFlies.length < 3) {
+        if (activeFlies.length < MIN_FLIES_BEFORE_RESPAWN) {
             const newFly = {
                 id: flyIdCounter++,
-                x: (Math.random() - 0.5) * 180,
-                y: 8 + Math.random() * 15,
-                z: (Math.random() - 0.5) * 180,
+                x: (Math.random() - 0.5) * (WORLD_SIZE - 20),
+                y: FLY_HEIGHT_MIN + Math.random() * (FLY_HEIGHT_MAX - FLY_HEIGHT_MIN),
+                z: (Math.random() - 0.5) * (WORLD_SIZE - 20),
                 collected: false
             };
             locationFlies.push(newFly);
@@ -268,11 +268,11 @@ setInterval(() => {
             }, location);
         }
     });
-}, 10000); // Every 10 seconds
+}, FLY_RESPAWN_INTERVAL_MS);
 
-// Golden Worm spawn check (every 30 seconds)
+// Golden Worm spawn check
 setInterval(() => {
-    locations.forEach(location => {
+    LOCATIONS.forEach(location => {
         // Check if golden worm expired
         checkGoldenWormExpiry(location);
 
@@ -282,7 +282,7 @@ setInterval(() => {
         const timeSinceLastSpawn = Date.now() - lastSpawn;
 
         // Only spawn if no active golden worm and enough time has passed
-        if (!currentGolden && timeSinceLastSpawn >= GOLDEN_WORM_SPAWN_INTERVAL) {
+        if (!currentGolden && timeSinceLastSpawn >= GOLDEN_WORM_SPAWN_INTERVAL_MS) {
             // Check if there are players in this location
             const playersInLocation = Array.from(players.values()).filter(p => p.location === location);
             if (playersInLocation.length > 0) {
@@ -290,17 +290,17 @@ setInterval(() => {
             }
         }
     });
-}, 30000); // Check every 30 seconds
+}, GOLDEN_WORM_CHECK_INTERVAL_MS);
 
-// Clean up old profiles (not seen in 24 hours)
+// Clean up old profiles
 setInterval(() => {
-    const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+    const expiryTime = Date.now() - PROFILE_EXPIRY_MS;
     for (const [name, profile] of playerProfiles) {
-        if (profile.lastSeen < oneDayAgo) {
+        if (profile.lastSeen < expiryTime) {
             playerProfiles.delete(name);
         }
     }
-}, 60 * 60 * 1000); // Check every hour
+}, PROFILE_CLEANUP_INTERVAL_MS);
 
 function broadcast(message, targetLocation = null) {
     const data = JSON.stringify(message);
@@ -365,7 +365,7 @@ function broadcastLeaderboard() {
                 leaderboardDirty = false;
             }
             leaderboardTimeout = null;
-        }, 1000); // Batch updates to once per second
+        }, LEADERBOARD_DEBOUNCE_MS);
     }
 }
 
@@ -396,7 +396,7 @@ wss.on('connection', (ws) => {
                     break;
 
                 case 'join':
-                    let playerName = sanitizeString(message.name, 20);
+                    let playerName = sanitizeString(message.name, MAX_NAME_LENGTH);
 
                     // Generate random unique name if not provided
                     if (!playerName) {
@@ -413,8 +413,8 @@ wss.on('connection', (ws) => {
                     }
 
                     // Validate bird type and location
-                    const birdType = validBirds.includes(message.bird) ? message.bird : 'sparrow';
-                    const location = locations.includes(message.location) ? message.location : 'city';
+                    const birdType = VALID_BIRDS.includes(message.bird) ? message.bird : 'sparrow';
+                    const location = LOCATIONS.includes(message.location) ? message.location : 'city';
 
                     // Get or create profile (restores score for returning players)
                     const profile = getOrCreateProfile(playerName, birdType);
@@ -425,7 +425,7 @@ wss.on('connection', (ws) => {
                         bird: birdType,
                         location: location,
                         x: 0,
-                        y: 10,
+                        y: SPAWN_HEIGHT,
                         z: 0,
                         rotationY: 0,
                         score: profile.totalScore // Restore score from profile
@@ -490,7 +490,7 @@ wss.on('connection', (ws) => {
                 case 'chat':
                     const chatPlayer = players.get(ws);
                     if (chatPlayer) {
-                        const sanitizedMessage = sanitizeString(message.message, 200);
+                        const sanitizedMessage = sanitizeString(message.message, MAX_CHAT_LENGTH);
                         if (sanitizedMessage) {
                             broadcast({
                                 type: 'chat',
@@ -522,6 +522,7 @@ wss.on('connection', (ws) => {
                         } else {
                             // Check regular worm
                             const locationWorms = worms.get(collector.location);
+                            if (!locationWorms) break;
                             worm = locationWorms.find(w => w.id === message.wormId && !w.collected);
                             if (worm) {
                                 worm.collected = true;
@@ -554,10 +555,11 @@ wss.on('connection', (ws) => {
                     const flyCollector = players.get(ws);
                     if (flyCollector) {
                         const locationFlies = flies.get(flyCollector.location);
+                        if (!locationFlies) break;
                         const fly = locationFlies.find(f => f.id === message.flyId && !f.collected);
                         if (fly) {
                             fly.collected = true;
-                            flyCollector.score += 2; // x2 points for flies!
+                            flyCollector.score += FLY_POINTS;
 
                             // Update profile with new high score
                             updateProfileScore(flyCollector.name, flyCollector.score);
@@ -578,27 +580,12 @@ wss.on('connection', (ws) => {
 
                 case 'change_location':
                     const movingPlayer = players.get(ws);
-                    console.log('[Server] change_location request:', message.location, 'player:', movingPlayer?.name);
-
-                    if (!movingPlayer) {
-                        console.log('[Server] Player not found in players map');
-                        break;
-                    }
+                    if (!movingPlayer) break;
 
                     const oldLocation = movingPlayer.location;
                     const newLocation = message.location;
 
-                    console.log('[Server] Location change:', oldLocation, '->', newLocation);
-                    console.log('[Server] Valid location:', locations.includes(newLocation));
-                    console.log('[Server] Different location:', oldLocation !== newLocation);
-
-                    if (!locations.includes(newLocation)) {
-                        console.log('[Server] Invalid location:', newLocation);
-                        break;
-                    }
-
-                    if (oldLocation === newLocation) {
-                        console.log('[Server] Same location, ignoring');
+                    if (!LOCATIONS.includes(newLocation) || oldLocation === newLocation) {
                         break;
                     }
 
@@ -645,8 +632,6 @@ wss.on('connection', (ws) => {
                         type: 'player_joined',
                         player: movingPlayer
                     }, ws, newLocation);
-
-                    console.log('[Server] Location change complete');
                     break;
 
                 case 'get_leaderboard':
