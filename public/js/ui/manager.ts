@@ -484,9 +484,10 @@ export class UIManager {
             indicator.id = 'connection-status';
             indicator.style.cssText = `
                 position: fixed;
-                bottom: 10px;
-                left: 50%;
-                transform: translateX(-50%);
+                bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+                right: calc(10px + env(safe-area-inset-right, 0px));
+                left: auto;
+                transform: none;
                 padding: 8px 16px;
                 border-radius: 4px;
                 font-size: 12px;
@@ -556,12 +557,12 @@ export class UIManager {
             #leaderboard {
                 position: fixed;
                 top: 120px;
-                left: 15px;
+                left: calc(15px + env(safe-area-inset-left, 0px));
                 background: rgba(0, 0, 0, 0.7);
                 border-radius: 8px;
                 color: white;
                 font-size: 12px;
-                z-index: 100;
+                z-index: 55;
                 min-width: 180px;
                 max-width: 220px;
                 backdrop-filter: blur(5px);
@@ -572,9 +573,9 @@ export class UIManager {
             @media (max-width: 768px) {
                 #leaderboard {
                     top: auto;
-                    bottom: 60px;
+                    bottom: calc(60px + env(safe-area-inset-bottom, 0px));
                     left: auto;
-                    right: 60px;
+                    right: calc(60px + env(safe-area-inset-right, 0px));
                     min-width: 140px;
                     max-width: 160px;
                     font-size: 11px;
@@ -588,14 +589,15 @@ export class UIManager {
             }
             @media (max-height: 500px) and (orientation: landscape) {
                 #leaderboard {
-                    top: auto;
-                    bottom: 10px;
-                    left: 50%;
-                    right: auto;
-                    transform: translateX(-50%);
-                    max-height: 100px;
+                    top: 50px;
+                    bottom: auto;
+                    left: auto;
+                    right: calc(10px + env(safe-area-inset-right, 0px));
+                    transform: none;
+                    max-width: 140px;
+                    max-height: 120px;
                 }
-                .leaderboard-content { max-height: 60px; }
+                .leaderboard-content { max-height: 70px; }
             }
             .leaderboard-header {
                 display: flex;

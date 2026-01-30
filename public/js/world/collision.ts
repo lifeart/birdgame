@@ -102,11 +102,17 @@ export class SpatialGrid {
                     const halfWidth = collider.width / 2;
                     const halfDepth = collider.depth / 2;
 
-                    if (position.x > collider.x - halfWidth - radius &&
-                        position.x < collider.x + halfWidth + radius &&
-                        position.z > collider.z - halfDepth - radius &&
-                        position.z < collider.z + halfDepth + radius &&
-                        position.y < collider.height) {
+                    // Check XZ bounds with radius padding
+                    const inXBounds = position.x > collider.x - halfWidth - radius &&
+                                      position.x < collider.x + halfWidth + radius;
+                    const inZBounds = position.z > collider.z - halfDepth - radius &&
+                                      position.z < collider.z + halfDepth + radius;
+                    // Check Y: bird sphere (position.y ± radius) must intersect collider (0 to height)
+                    const birdBottom = position.y - radius;
+                    const birdTop = position.y + radius;
+                    const inYBounds = birdBottom < collider.height && birdTop > 0;
+
+                    if (inXBounds && inZBounds && inYBounds) {
                         return collider.objectType || 'building';
                     }
                 } else if (collider.type === 'cylinder') {
@@ -114,7 +120,12 @@ export class SpatialGrid {
                     const dz = position.z - collider.z;
                     const dist = Math.sqrt(dx * dx + dz * dz);
 
-                    if (dist < collider.radius + radius && position.y < collider.height) {
+                    // Check Y: bird sphere must intersect collider height range
+                    const birdBottom = position.y - radius;
+                    const birdTop = position.y + radius;
+                    const inYBounds = birdBottom < collider.height && birdTop > 0;
+
+                    if (dist < collider.radius + radius && inYBounds) {
                         return collider.objectType || 'tree';
                     }
                 }

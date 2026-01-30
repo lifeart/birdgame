@@ -570,15 +570,16 @@ canvas {
         display: none;
     }
 
-    /* Chat - mobile collapsible - positioned above joystick */
+    /* Chat - mobile collapsible - positioned to avoid touch controls */
     .chat {
         width: auto;
         min-width: 140px;
         max-width: 200px;
-        left: 50%;
-        transform: translateX(-50%);
+        left: 10px;
+        right: auto;
+        transform: none;
         bottom: auto;
-        top: 70px;
+        top: 120px;
         background: rgba(0, 0, 0, 0.7);
     }
 
@@ -742,13 +743,14 @@ canvas {
     #playerList {
         font-size: 11px;
         max-width: 120px;
-        right: 55px;
+        right: calc(55px + env(safe-area-inset-right, 0px));
     }
 
     .chat {
         min-width: 120px;
         max-width: 140px;
-        top: 60px;
+        top: 110px;
+        left: 5px;
     }
 
     #chatMessages {
@@ -859,12 +861,12 @@ canvas {
 
     /* Game UI landscape adjustments */
     .game-ui {
-        padding: 5px 10px;
+        padding: calc(5px + env(safe-area-inset-top, 0px)) calc(10px + env(safe-area-inset-right, 0px)) 5px calc(10px + env(safe-area-inset-left, 0px));
     }
 
     .top-bar #playerList {
-        top: 5px;
-        right: 50px;
+        top: calc(5px + env(safe-area-inset-top, 0px));
+        right: calc(50px + env(safe-area-inset-right, 0px));
         max-height: 80px;
     }
 
@@ -883,15 +885,29 @@ canvas {
         padding: 4px 8px;
     }
 
-    /* Chat in landscape */
+    /* Chat in landscape - positioned left side to avoid touch controls */
     .chat {
-        top: 5px;
-        left: 50%;
-        max-width: 180px;
+        top: auto;
+        bottom: calc(65% + 10px);
+        left: calc(26% + 10px);
+        transform: none;
+        max-width: 160px;
     }
 
     #chatMessages {
-        max-height: 60px;
+        max-height: 50px;
+    }
+
+    /* Golden alert in landscape */
+    .golden-alert {
+        top: calc(50px + env(safe-area-inset-top, 0px));
+        padding: 10px 18px;
+        font-size: 13px;
+    }
+
+    /* XP notification in landscape */
+    .xp-notification {
+        top: calc(50px + env(safe-area-inset-top, 0px));
     }
 }
 
@@ -1213,9 +1229,9 @@ canvas {
 /* Golden Worm Alert */
 .golden-alert {
     position: fixed;
-    top: 50%;
+    top: calc(120px + env(safe-area-inset-top, 0px));
     left: 50%;
-    transform: translate(-50%, -50%);
+    transform: translateX(-50%);
     background: linear-gradient(135deg, #FFD700, #FFA500);
     color: #1a1a2e;
     padding: 15px 30px;
@@ -1236,9 +1252,9 @@ canvas {
 }
 
 @keyframes alertPop {
-    0% { transform: translate(-50%, -50%) scale(0); }
-    50% { transform: translate(-50%, -50%) scale(1.1); }
-    100% { transform: translate(-50%, -50%) scale(1); }
+    0% { transform: translateX(-50%) scale(0); }
+    50% { transform: translateX(-50%) scale(1.1); }
+    100% { transform: translateX(-50%) scale(1); }
 }
 
 @keyframes alertFade {
@@ -1254,7 +1270,7 @@ canvas {
 /* XP Notification */
 .xp-notification {
     position: fixed;
-    top: 50px;
+    top: calc(50px + env(safe-area-inset-top, 0px));
     left: 50%;
     transform: translateX(-50%);
     background: rgba(0, 255, 136, 0.9);
@@ -1302,7 +1318,7 @@ canvas {
         align-self: flex-end;
         position: absolute;
         top: 10px;
-        right: 55px;
+        right: calc(55px + env(safe-area-inset-right, 0px));
     }
 
     .left-stats {
@@ -1363,12 +1379,13 @@ canvas {
     .golden-alert {
         padding: 12px 20px;
         font-size: 14px;
+        top: calc(85px + env(safe-area-inset-top, 0px));
     }
 
     .xp-notification {
         font-size: 14px;
         padding: 8px 20px;
-        top: 45px;
+        top: calc(75px + env(safe-area-inset-top, 0px));
     }
 }
 

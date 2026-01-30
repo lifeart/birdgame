@@ -88,7 +88,7 @@ export class TouchControls {
         currentY: 0,
         element: null,
         knob: null,
-        maxRadius: 42
+        maxRadius: 29  // (100px joystick - 42px knob) / 2 = 29px max travel
     };
     private joystickTouchId: number | null = null;
 
@@ -141,6 +141,7 @@ export class TouchControls {
     private documentTouchEndHandler: ((e: TouchEvent) => void) | null = null;
     private documentGestureStartHandler: ((e: Event) => void) | null = null;
     private documentGestureChangeHandler: ((e: Event) => void) | null = null;
+    private resizeHandler: (() => void) | null = null;
 
     // Button event handlers for cleanup
     private buttonHandlers: Map<string, { element: HTMLElement; handlers: { [event: string]: EventListener } }> = new Map();
@@ -196,7 +197,21 @@ export class TouchControls {
         this.joystick.element = document.getElementById('joystick');
         this.joystick.knob = document.getElementById('joystick-knob');
 
+        // Calculate maxRadius dynamically based on actual element sizes
+        this.updateJoystickMaxRadius();
+        this.resizeHandler = () => this.updateJoystickMaxRadius();
+        window.addEventListener('resize', this.resizeHandler);
+
         this.addStyles();
+    }
+
+    private updateJoystickMaxRadius(): void {
+        if (this.joystick.element && this.joystick.knob) {
+            const joystickSize = this.joystick.element.offsetWidth;
+            const knobSize = this.joystick.knob.offsetWidth;
+            // Max radius is half the difference between joystick and knob sizes
+            this.joystick.maxRadius = Math.max(10, (joystickSize - knobSize) / 2);
+        }
     }
 
     private addStyles(): void {
@@ -895,14 +910,16 @@ export class TouchControls {
 
     private getCameraZoneTouches(touches: TouchList, screenWidth: number): Touch[] {
         const result: Touch[] = [];
+        const screenHeight = window.innerHeight;
         for (let i = 0; i < touches.length; i++) {
             const touch = touches[i];
             // Camera zone: center area (35% to 75% of screen width)
             // Left zone is 35%, right zone is 25%, leaving 40% center
+            // Exclude touches in the top 130px (UI elements area) and bottom 45% (button zone)
             // Exclude touches that belong to the joystick
-            if (touch.identifier !== this.joystickTouchId &&
-                touch.clientX > screenWidth * 0.35 &&
-                touch.clientX < screenWidth * 0.75) {
+            const inCameraX = touch.clientX > screenWidth * 0.35 && touch.clientX < screenWidth * 0.75;
+            const inCameraY = touch.clientY > 130 && touch.clientY < screenHeight * 0.55;
+            if (touch.identifier !== this.joystickTouchId && inCameraX && inCameraY) {
                 result.push(touch);
             }
         }
@@ -1058,6 +1075,10 @@ export class TouchControls {
         if (this.documentGestureChangeHandler) {
             document.removeEventListener('gesturechange', this.documentGestureChangeHandler);
             this.documentGestureChangeHandler = null;
+        }
+        if (this.resizeHandler) {
+            window.removeEventListener('resize', this.resizeHandler);
+            this.resizeHandler = null;
         }
 
         // Remove joystick zone event listeners
