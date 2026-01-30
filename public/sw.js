@@ -5,21 +5,7 @@ const STATIC_ASSETS = [
     '/',
     '/index.html',
     '/css/style.css',
-    '/js/main.js',
-    '/js/game.js',
-    '/js/world.js',
-    '/js/bird.js',
-    '/js/locations.js',
-    '/js/weather.js',
-    '/js/effects.js',
-    '/js/worms.js',
-    '/js/flies.js',
-    '/js/audio.js',
-    '/js/ui.js',
-    '/js/touch.js',
-    '/js/network.js',
-    '/js/progression.js',
-    '/js/rewards.js',
+    '/js/bundle.js',
     '/manifest.json',
     '/icons/icon-72.png',
     '/icons/icon-96.png',
@@ -31,11 +17,7 @@ const STATIC_ASSETS = [
     '/icons/icon-512.png'
 ];
 
-const EXTERNAL_ASSETS = [
-    'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js'
-];
-
-const ALL_ASSETS = [...STATIC_ASSETS, ...EXTERNAL_ASSETS];
+const ALL_ASSETS = STATIC_ASSETS;
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {

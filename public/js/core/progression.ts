@@ -1,10 +1,48 @@
 // Progression System - XP, Levels, and Rewards
-class ProgressionManager {
+
+export interface LevelReward {
+    type: 'start' | 'trail' | 'aura' | 'accessory' | 'legendary';
+    description: string;
+    trailId?: string;
+    auraId?: string;
+    accessoryId?: string;
+    skinId?: string;
+}
+
+export interface UnlockedReward extends LevelReward {
+    level: number;
+}
+
+export interface ProgressionStats {
+    level: number;
+    currentXP: number;
+    xpToNext: number;
+    xpProgress: number;
+    totalXP: number;
+    unlockedCount: number;
+    nextRewardLevel: number | null;
+}
+
+export type XPAction = 'worm' | 'fly' | 'goldenWorm' | 'butterfly' | 'powerup' | 'distance100' | 'timeMinute' | 'achievement';
+
+export type XPGainCallback = (amount: number, source: string, currentXP: number, progress: number) => void;
+export type LevelUpCallback = (oldLevel: number, newLevel: number, reward: LevelReward | undefined) => void;
+
+export class ProgressionManager {
+    private xpTable: number[];
+    private levelRewards: Record<number, LevelReward>;
+
+    public currentXP: number = 0;
+    public currentLevel: number = 1;
+    public totalXPEarned: number = 0;
+    public unlockedRewards: UnlockedReward[] = [];
+
+    public onLevelUp: LevelUpCallback | null = null;
+    public onXPGain: XPGainCallback | null = null;
+
     constructor() {
-        // XP required for each level (exponential curve)
         this.xpTable = this.generateXPTable();
 
-        // Level rewards - what you unlock at each level
         this.levelRewards = {
             1: { type: 'start', description: 'Welcome to BirdGame!' },
             5: { type: 'trail', trailId: 'basic', description: 'Trail Effect Unlocked!' },
@@ -19,42 +57,30 @@ class ProgressionManager {
             50: { type: 'legendary', skinId: 'legendary', description: 'Legendary Bird Skin!' }
         };
 
-        // Load saved progress
-        this.currentXP = 0;
-        this.currentLevel = 1;
-        this.totalXPEarned = 0;
-        this.unlockedRewards = [];
-
         this.loadProgress();
-
-        // Callbacks
-        this.onLevelUp = null;
-        this.onXPGain = null;
     }
 
-    generateXPTable() {
-        const table = [0]; // Level 1 = 0 XP
+    private generateXPTable(): number[] {
+        const table = [0];
         for (let level = 2; level <= 50; level++) {
-            // Exponential curve: each level needs more XP
-            // Level 2: 50 XP, Level 10: ~500 XP, Level 50: ~10000 XP
             const xp = Math.floor(50 * Math.pow(1.15, level - 2));
             table.push(table[table.length - 1] + xp);
         }
         return table;
     }
 
-    getXPForLevel(level) {
+    getXPForLevel(level: number): number {
         if (level <= 1) return 0;
         if (level > 50) return this.xpTable[49];
         return this.xpTable[level - 1];
     }
 
-    getXPToNextLevel() {
+    getXPToNextLevel(): number {
         if (this.currentLevel >= 50) return 0;
         return this.getXPForLevel(this.currentLevel + 1) - this.currentXP;
     }
 
-    getXPProgress() {
+    getXPProgress(): number {
         if (this.currentLevel >= 50) return 1;
         const currentLevelXP = this.getXPForLevel(this.currentLevel);
         const nextLevelXP = this.getXPForLevel(this.currentLevel + 1);
@@ -62,18 +88,16 @@ class ProgressionManager {
         return Math.max(0, Math.min(1, progress));
     }
 
-    addXP(amount, source = 'unknown') {
-        if (this.currentLevel >= 50) return;
+    addXP(amount: number, source: string = 'unknown'): boolean {
+        if (this.currentLevel >= 50) return false;
 
         const oldLevel = this.currentLevel;
         this.currentXP += amount;
         this.totalXPEarned += amount;
 
-        // Check for level ups
         while (this.currentLevel < 50 && this.currentXP >= this.getXPForLevel(this.currentLevel + 1)) {
             this.currentLevel++;
 
-            // Check for rewards at this level
             if (this.levelRewards[this.currentLevel]) {
                 const reward = this.levelRewards[this.currentLevel];
                 this.unlockedRewards.push({
@@ -83,10 +107,8 @@ class ProgressionManager {
             }
         }
 
-        // Save progress
         this.saveProgress();
 
-        // Trigger callbacks
         if (this.onXPGain) {
             this.onXPGain(amount, source, this.currentXP, this.getXPProgress());
         }
@@ -98,34 +120,30 @@ class ProgressionManager {
         return this.currentLevel > oldLevel;
     }
 
-    // XP rewards for different actions
-    getXPForAction(action) {
-        const xpValues = {
-            worm: 5,           // Regular worm
-            fly: 10,           // Fly (harder to catch)
-            goldenWorm: 50,    // Golden worm (rare)
-            butterfly: 25,     // Butterfly
-            powerup: 15,       // Collecting power-up
-            distance100: 2,    // Every 100 meters flown
-            timeMinute: 3,     // Every minute played
-            achievement: 100   // Achievement unlock
+    getXPForAction(action: XPAction): number {
+        const xpValues: Record<XPAction, number> = {
+            worm: 5,
+            fly: 10,
+            goldenWorm: 50,
+            butterfly: 25,
+            powerup: 15,
+            distance100: 2,
+            timeMinute: 3,
+            achievement: 100
         };
         return xpValues[action] || 0;
     }
 
-    // Check if a reward is unlocked
-    hasUnlocked(type, id) {
+    hasUnlocked(type: string, id: string): boolean {
         return this.unlockedRewards.some(r => r.type === type &&
             (r.trailId === id || r.auraId === id || r.accessoryId === id || r.skinId === id));
     }
 
-    // Get all unlocked items of a type
-    getUnlockedByType(type) {
+    getUnlockedByType(type: string): UnlockedReward[] {
         return this.unlockedRewards.filter(r => r.type === type);
     }
 
-    // Save/Load from localStorage
-    saveProgress() {
+    saveProgress(): void {
         try {
             const data = {
                 currentXP: this.currentXP,
@@ -140,13 +158,12 @@ class ProgressionManager {
         }
     }
 
-    loadProgress() {
+    loadProgress(): void {
         try {
             const saved = localStorage.getItem('birdgame_progression');
             if (saved) {
                 const data = JSON.parse(saved);
 
-                // Validate loaded data
                 this.currentXP = typeof data.currentXP === 'number' && data.currentXP >= 0
                     ? Math.floor(data.currentXP) : 0;
                 this.currentLevel = typeof data.currentLevel === 'number' &&
@@ -157,18 +174,15 @@ class ProgressionManager {
                 this.unlockedRewards = Array.isArray(data.unlockedRewards)
                     ? data.unlockedRewards : [];
 
-                // Validate that currentXP matches currentLevel
                 const minXPForLevel = this.getXPForLevel(this.currentLevel);
                 const maxXPForLevel = this.currentLevel >= 50 ? Infinity : this.getXPForLevel(this.currentLevel + 1);
                 if (this.currentXP < minXPForLevel || this.currentXP >= maxXPForLevel) {
-                    // Recalculate level from XP
                     this.currentLevel = 1;
                     while (this.currentLevel < 50 && this.currentXP >= this.getXPForLevel(this.currentLevel + 1)) {
                         this.currentLevel++;
                     }
                 }
 
-                // Ensure level 1 rewards are unlocked
                 if (!this.unlockedRewards.find(r => r.level === 1)) {
                     this.unlockedRewards.push({
                         level: 1,
@@ -178,7 +192,6 @@ class ProgressionManager {
             }
         } catch (e) {
             console.warn('Could not load progression:', e);
-            // Reset to defaults on error
             this.currentXP = 0;
             this.currentLevel = 1;
             this.totalXPEarned = 0;
@@ -186,8 +199,7 @@ class ProgressionManager {
         }
     }
 
-    // Get stats for display
-    getStats() {
+    getStats(): ProgressionStats {
         return {
             level: this.currentLevel,
             currentXP: this.currentXP,
@@ -199,13 +211,12 @@ class ProgressionManager {
         };
     }
 
-    getNextRewardLevel() {
+    getNextRewardLevel(): number | null {
         const rewardLevels = Object.keys(this.levelRewards).map(Number).sort((a, b) => a - b);
         return rewardLevels.find(level => level > this.currentLevel) || null;
     }
 
-    // Reset progress (for testing)
-    reset() {
+    reset(): void {
         this.currentXP = 0;
         this.currentLevel = 1;
         this.totalXPEarned = 0;
@@ -216,6 +227,3 @@ class ProgressionManager {
         this.saveProgress();
     }
 }
-
-// Global instance
-const progressionManager = new ProgressionManager();

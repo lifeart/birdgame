@@ -1,39 +1,48 @@
 // Weather system - lightweight visual effects
-class WeatherSystem {
-    constructor(scene) {
+import * as THREE from 'three';
+
+export type WeatherType = 'clear' | 'rain' | 'fog' | 'aurora';
+
+interface SkyUniforms {
+    [key: string]: { value: THREE.Color | THREE.Vector3 | number };
+    topColor: { value: THREE.Color };
+    bottomColor: { value: THREE.Color };
+    sunPosition: { value: THREE.Vector3 };
+    timeOfDay: { value: number };
+    auroraIntensity: { value: number };
+    auroraTime: { value: number };
+}
+
+export class WeatherSystem {
+    private scene: THREE.Scene;
+    private objects: THREE.Object3D[] = [];
+    private timeOfDay: number = 12;
+    private timeSpeed: number = 0.5;
+    private currentWeather: WeatherType = 'clear';
+    private weatherTransition: number = 0;
+    private skyMaterial: THREE.ShaderMaterial | null = null;
+    private skyUniforms: SkyUniforms | null = null;
+    private sky: THREE.Mesh | null = null;
+    private sunMesh: THREE.Mesh | null = null;
+    private moonMesh: THREE.Mesh | null = null;
+    private sunLight: THREE.DirectionalLight | null = null;
+    private sunGlow: THREE.Mesh | null = null;
+    private rainSystem: THREE.LineSegments | null = null;
+    private rainVelocities: Float32Array | null = null;
+    private rainbow: THREE.Mesh | null = null;
+    private rainbowMaterial: THREE.ShaderMaterial | null = null;
+    private auroraActive: boolean = false;
+    private godRays: THREE.Group | null = null;
+    private godRayMaterial: THREE.MeshBasicMaterial | null = null;
+    private fog: THREE.Fog | null = null;
+    private sharedGeometries: Record<string, THREE.BufferGeometry> = {};
+    private sharedMaterials: Record<string, THREE.Material> = {};
+
+    constructor(scene: THREE.Scene) {
         this.scene = scene;
-        this.objects = [];
-
-        // Time of day (0-24)
-        this.timeOfDay = 12;
-        this.timeSpeed = 0.5; // Hours per real minute
-
-        // Weather state
-        this.currentWeather = 'clear'; // clear, rain, fog, aurora
-        this.weatherTransition = 0;
-
-        // Sky dome reference (will be set from createSky)
-        this.skyMaterial = null;
-        this.skyUniforms = null;
-
-        // Sun/Moon
-        this.sunMesh = null;
-        this.moonMesh = null;
-        this.sunLight = null;
-
-        // Effects
-        this.rainSystem = null;
-        this.rainbow = null;
-        this.aurora = null;
-        this.godRays = null;
-        this.fogObject = null;
-
-        // Performance: reuse geometries and materials
-        this.sharedGeometries = {};
-        this.sharedMaterials = {};
     }
 
-    init(existingFog) {
+    init(existingFog: THREE.Fog): void {
         this.fog = existingFog;
         this.createSkyDome();
         this.createSunMoon();
@@ -43,7 +52,7 @@ class WeatherSystem {
         this.createGodRays();
     }
 
-    createSkyDome() {
+    private createSkyDome(): void {
         // Enhanced sky shader with day/night cycle
         const skyGeom = new THREE.SphereGeometry(290, 32, 32);
 
@@ -131,7 +140,7 @@ class WeatherSystem {
         this.sky = sky;
     }
 
-    createSunMoon() {
+    private createSunMoon(): void {
         // Sun - simple glowing sphere
         const sunGeom = new THREE.SphereGeometry(8, 16, 16);
         const sunMat = new THREE.MeshBasicMaterial({
@@ -165,10 +174,11 @@ class WeatherSystem {
         this.objects.push(this.moonMesh);
 
         // Directional light (sun/moon light)
-        this.sunLight = this.scene.children.find(c => c instanceof THREE.DirectionalLight);
+        const foundLight = this.scene.children.find(c => c instanceof THREE.DirectionalLight);
+        this.sunLight = foundLight ? foundLight as THREE.DirectionalLight : null;
     }
 
-    createRainSystem() {
+    private createRainSystem(): void {
         // Instanced rain drops for performance
         const dropCount = 2000;
         const dropGeom = new THREE.BufferGeometry();
@@ -210,7 +220,7 @@ class WeatherSystem {
         this.objects.push(this.rainSystem);
     }
 
-    createRainbow() {
+    private createRainbow(): void {
         // Rainbow arc using a torus segment
         const rainbowGeom = new THREE.TorusGeometry(80, 8, 8, 64, Math.PI);
 
@@ -261,12 +271,12 @@ class WeatherSystem {
         this.objects.push(this.rainbow);
     }
 
-    createAurora() {
+    private createAurora(): void {
         // Aurora is handled by sky shader, this just stores state
         this.auroraActive = false;
     }
 
-    createGodRays() {
+    private createGodRays(): void {
         // God rays - simple transparent planes
         const rayGroup = new THREE.Group();
         const rayCount = 8;
@@ -300,48 +310,54 @@ class WeatherSystem {
         this.objects.push(rayGroup);
     }
 
-    // Set weather type
-    setWeather(type) {
+    setWeather(type: WeatherType): void {
         this.currentWeather = type;
 
         // Update visibility
-        this.rainSystem.visible = (type === 'rain');
+        if (this.rainSystem) {
+            this.rainSystem.visible = (type === 'rain');
+        }
         this.auroraActive = (type === 'aurora');
 
         // Fog
-        if (type === 'fog') {
-            this.fog.near = 10;
-            this.fog.far = 80;
-        } else if (type === 'rain') {
-            this.fog.near = 50;
-            this.fog.far = 200;
-        } else {
-            this.fog.near = 100;
-            this.fog.far = 300;
+        if (this.fog) {
+            if (type === 'fog') {
+                this.fog.near = 10;
+                this.fog.far = 80;
+            } else if (type === 'rain') {
+                this.fog.near = 50;
+                this.fog.far = 200;
+            } else {
+                this.fog.near = 100;
+                this.fog.far = 300;
+            }
         }
     }
 
-    // Set time of day (0-24)
-    setTimeOfDay(hours) {
+    setTimeOfDay(hours: number): void {
         this.timeOfDay = hours % 24;
     }
 
-    // Show/hide rainbow
-    showRainbow(show) {
+    getTimeOfDay(): number {
+        return this.timeOfDay;
+    }
+
+    showRainbow(show: boolean): void {
         if (this.rainbowMaterial) {
             this.rainbowMaterial.uniforms.opacity.value = show ? 1.0 : 0.0;
         }
     }
 
-    // Show/hide god rays
-    showGodRays(show) {
-        this.godRays.visible = show;
+    showGodRays(show: boolean): void {
+        if (this.godRays) {
+            this.godRays.visible = show;
+        }
         if (this.godRayMaterial) {
             this.godRayMaterial.opacity = show ? 0.15 : 0.0;
         }
     }
 
-    update(deltaTime, time) {
+    update(deltaTime: number, time: number): void {
         // Update time of day (auto cycle)
         this.timeOfDay += deltaTime * this.timeSpeed / 60;
         if (this.timeOfDay >= 24) this.timeOfDay -= 24;
@@ -443,8 +459,8 @@ class WeatherSystem {
         if (this.rainSystem && this.rainSystem.visible) {
             const positions = this.rainSystem.geometry.attributes.position.array;
 
-            for (let i = 0; i < this.rainVelocities.length; i++) {
-                const speed = this.rainVelocities[i] * 2;
+            for (let i = 0; i < this.rainVelocities!.length; i++) {
+                const speed = this.rainVelocities![i] * 2;
 
                 // Move both start and end points down
                 positions[i * 6 + 1] -= speed;
@@ -498,7 +514,7 @@ class WeatherSystem {
         }
     }
 
-    lerpColor(c1, c2, t) {
+    private lerpColor(c1: number, c2: number, t: number): number {
         const r1 = (c1 >> 16) & 0xff;
         const g1 = (c1 >> 8) & 0xff;
         const b1 = c1 & 0xff;
@@ -514,14 +530,54 @@ class WeatherSystem {
         return (r << 16) | (g << 8) | b;
     }
 
-    clear() {
-        this.objects.forEach(obj => this.scene.remove(obj));
+    clear(): void {
+        this.objects.forEach(obj => {
+            this.scene.remove(obj);
+            // Dispose geometries and materials to prevent GPU memory leaks
+            if (obj instanceof THREE.Mesh) {
+                obj.geometry?.dispose();
+                if (obj.material instanceof THREE.Material) {
+                    obj.material.dispose();
+                } else if (Array.isArray(obj.material)) {
+                    obj.material.forEach(mat => mat.dispose());
+                }
+            } else if (obj instanceof THREE.LineSegments) {
+                obj.geometry?.dispose();
+                if (obj.material instanceof THREE.Material) {
+                    obj.material.dispose();
+                }
+            } else if (obj instanceof THREE.Group) {
+                obj.traverse(child => {
+                    if (child instanceof THREE.Mesh) {
+                        child.geometry?.dispose();
+                        if (child.material instanceof THREE.Material) {
+                            child.material.dispose();
+                        } else if (Array.isArray(child.material)) {
+                            child.material.forEach(mat => mat.dispose());
+                        }
+                    }
+                });
+            }
+        });
         this.objects = [];
+
+        // Clear references to allow garbage collection
+        this.sky = null;
+        this.sunMesh = null;
+        this.moonMesh = null;
+        this.sunGlow = null;
+        this.rainSystem = null;
+        this.rainVelocities = null;
+        this.rainbow = null;
+        this.rainbowMaterial = null;
+        this.godRays = null;
+        this.godRayMaterial = null;
+        this.skyMaterial = null;
+        this.skyUniforms = null;
     }
 
-    // Random weather change
-    randomWeather() {
-        const weathers = ['clear', 'clear', 'clear', 'rain', 'fog', 'aurora'];
+    randomWeather(): WeatherType {
+        const weathers: WeatherType[] = ['clear', 'clear', 'clear', 'rain', 'fog', 'aurora'];
         const weather = weathers[Math.floor(Math.random() * weathers.length)];
         this.setWeather(weather);
         return weather;

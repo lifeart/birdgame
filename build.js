@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 
 const isProduction = process.argv.includes('--prod');
-const bundleClient = process.argv.includes('--client') || isProduction;
+const isDev = !isProduction;
 
 // Minify CSS using esbuild
 async function minifyCSS(cssContent) {
@@ -50,21 +50,42 @@ async function build() {
             logLevel: 'info'
         });
 
-        // Copy public folder structure
+        // Copy public folder structure (excluding JS/TS files - they'll be bundled)
         const publicSrc = path.join(__dirname, 'public');
         const publicDest = path.join(distDir, 'public');
 
-        if (isProduction) {
-            // For production, copy files (will overwrite JS with bundle)
-            copyDir(publicSrc, publicDest, bundleClient ? ['.js'] : []);
-            console.log('Copied public folder to dist/');
+        // Ensure public/js directory exists in dist
+        const jsDestDir = path.join(publicDest, 'js');
+        if (!fs.existsSync(jsDestDir)) {
+            fs.mkdirSync(jsDestDir, { recursive: true });
+        }
 
-            // Bundle client-side JS
-            if (bundleClient) {
-                console.log('Bundling client-side JavaScript...');
-                await bundleClientJS(publicDest);
+        // Copy non-JS/TS files
+        copyDir(publicSrc, publicDest, ['.js', '.ts']);
+        console.log('Copied public folder to dist/ (excluding JS/TS)');
+
+        // Bundle client-side TypeScript
+        console.log('Bundling client-side TypeScript...');
+        await esbuild.build({
+            entryPoints: [path.join(__dirname, 'public', 'js', 'main.ts')],
+            bundle: true,
+            format: 'iife',
+            target: 'es2020',
+            outfile: path.join(jsDestDir, 'bundle.js'),
+            minify: isProduction,
+            sourcemap: isDev ? 'inline' : false,
+            logLevel: 'info',
+            // THREE.js is now bundled from node_modules
+            external: [],
+            define: {
+                'process.env.NODE_ENV': isProduction ? '"production"' : '"development"'
             }
+        });
 
+        // Update index.html to use bundle
+        updateIndexHtml(publicDest);
+
+        if (isProduction) {
             // Minify CSS files
             console.log('Minifying CSS...');
             await minifyAllCSS(publicDest);
@@ -72,38 +93,27 @@ async function build() {
             // Update service worker version for cache invalidation
             console.log('Updating service worker version...');
             updateServiceWorkerVersion(publicDest, buildVersion);
-        } else {
-            // For development, create symlink
-            if (fs.existsSync(publicDest)) {
-                fs.rmSync(publicDest, { recursive: true });
-            }
-            fs.symlinkSync(publicSrc, publicDest, 'dir');
-            console.log('Created symlink for public folder');
         }
 
         // Print build summary
         console.log('\n✓ Build complete!');
         console.log('─'.repeat(40));
 
-        if (isProduction) {
-            const serverStats = fs.statSync(path.join(distDir, 'server.js'));
-            console.log(`  Server bundle: ${(serverStats.size / 1024).toFixed(2)} KB`);
+        const serverStats = fs.statSync(path.join(distDir, 'server.js'));
+        console.log(`  Server bundle: ${(serverStats.size / 1024).toFixed(2)} KB`);
 
-            if (bundleClient) {
-                const clientPath = path.join(publicDest, 'js', 'bundle.js');
-                if (fs.existsSync(clientPath)) {
-                    const clientStats = fs.statSync(clientPath);
-                    console.log(`  Client bundle: ${(clientStats.size / 1024).toFixed(2)} KB`);
-                }
-            }
-
-            // Calculate total dist size
-            const totalSize = getDirSize(distDir);
-            console.log(`  Total dist size: ${(totalSize / 1024).toFixed(2)} KB`);
+        const clientPath = path.join(publicDest, 'js', 'bundle.js');
+        if (fs.existsSync(clientPath)) {
+            const clientStats = fs.statSync(clientPath);
+            console.log(`  Client bundle: ${(clientStats.size / 1024).toFixed(2)} KB`);
         }
 
+        // Calculate total dist size
+        const totalSize = getDirSize(distDir);
+        console.log(`  Total dist size: ${(totalSize / 1024).toFixed(2)} KB`);
+
         console.log('─'.repeat(40));
-        console.log('Run with: npm run start:prod');
+        console.log(`Run with: npm run ${isProduction ? 'start:prod' : 'start'}`);
 
     } catch (error) {
         console.error('Build failed:', error);
@@ -111,66 +121,13 @@ async function build() {
     }
 }
 
-async function bundleClientJS(publicDest) {
-    const jsDir = path.join(publicDest, 'js');
-
-    // Client JS files in load order
-    const clientFiles = [
-        'audio.js',
-        'progression.js',
-        'rewards.js',
-        'effects.js',
-        'bird.js',
-        'world.js',
-        'worms.js',
-        'flies.js',
-        'weather.js',
-        'locations.js',
-        'network.js',
-        'ui.js',
-        'touch.js',
-        'game.js',
-        'main.js'
-    ];
-
-    // Create a temporary entry file that imports all modules
-    const entryContent = clientFiles
-        .map(f => `// ${f}\n` + fs.readFileSync(path.join(__dirname, 'public', 'js', f), 'utf8'))
-        .join('\n\n');
-
-    const tempEntry = path.join(jsDir, '_entry.js');
-    fs.writeFileSync(tempEntry, entryContent);
-
-    // Bundle
-    await esbuild.build({
-        entryPoints: [tempEntry],
-        bundle: false,
-        minify: true,
-        outfile: path.join(jsDir, 'bundle.js'),
-        target: 'es2020',
-        format: 'iife',
-        logLevel: 'info'
-    });
-
-    // Remove temp file
-    fs.unlinkSync(tempEntry);
-
-    // Update index.html to use bundle
+function updateIndexHtml(publicDest) {
     const indexPath = path.join(publicDest, 'index.html');
-    let indexHtml = fs.readFileSync(indexPath, 'utf8');
+    const indexHtml = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
 
-    // Replace individual script tags with bundle
-    const scriptRegex = /<script src="js\/(audio|progression|rewards|effects|bird|world|worms|flies|weather|locations|network|ui|touch|game|main)\.js"><\/script>\s*/g;
-    indexHtml = indexHtml.replace(scriptRegex, '');
-
-    // Add bundle script before closing body
-    indexHtml = indexHtml.replace(
-        '</body>',
-        '    <script src="js/bundle.js"></script>\n</body>'
-    );
-
+    // index.html already references bundle.js directly (three.js bundled from npm)
     fs.writeFileSync(indexPath, indexHtml);
-    console.log('Updated index.html to use bundled JS');
+    console.log('Copied index.html (uses bundled JS with three.js from npm)');
 }
 
 async function minifyAllCSS(dir) {
@@ -234,15 +191,17 @@ function copyDir(src, dest, skipExtensions = []) {
         const destPath = path.join(dest, entry.name);
 
         if (entry.isDirectory()) {
-            // Skip js directory if we're bundling client (we'll handle it separately)
-            if (entry.name === 'js' && skipExtensions.includes('.js')) {
-                fs.mkdirSync(destPath, { recursive: true });
+            // Skip js directory entirely if we're skipping .js/.ts files
+            // We'll create bundle.js separately
+            if (entry.name === 'js' && (skipExtensions.includes('.js') || skipExtensions.includes('.ts'))) {
                 continue;
             }
             copyDir(srcPath, destPath, skipExtensions);
         } else {
             const ext = path.extname(entry.name);
-            if (!skipExtensions.includes(ext)) {
+            // Always copy sw.js (service worker), skip other JS/TS files
+            const isServiceWorker = entry.name === 'sw.js';
+            if (isServiceWorker || !skipExtensions.includes(ext)) {
                 fs.copyFileSync(srcPath, destPath);
             }
         }

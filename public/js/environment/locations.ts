@@ -1,11 +1,64 @@
 // Location configurations with rich details
-const LOCATIONS = {
+
+// Forward declare World type to avoid circular dependency
+export interface WorldInterface {
+    createGround(color: number, hasGrass: boolean): void;
+    createBuilding(x: number, z: number, width: number, depth: number, height: number, color: number): void;
+    createTree(x: number, z: number, scale: number, type?: string): void;
+    createStreetLamp(x: number, z: number): void;
+    createBench(x: number, z: number, rotation: number): void;
+    createBush(x: number, z: number, scale: number): void;
+    createFlowerPatch(x: number, z: number, scale: number): void;
+    createRock(x: number, z: number, scale: number): void;
+    createCloud(x: number, y: number, z: number, scale: number): void;
+    createPigeon(x: number, z: number, onRooftop: boolean): void;
+    createAmbientParticles(type: string, count: number, bounds: { x: number; y: number; z: number }): void;
+    createFountain(x: number, z: number): void;
+    createPond(x: number, z: number, radius: number): void;
+    createDuck(x: number, z: number): void;
+    createPlayground(x: number, z: number): void;
+    createCarousel(x: number, z: number, scale: number): void;
+    createHouse(x: number, z: number, width: number, depth: number, height: number, roofColor: number): void;
+    createWindmill(x: number, z: number, scale: number): void;
+    createRiver(x1: number, z1: number, x2: number, z2: number, width: number): void;
+    createBridge(x: number, z: number, rotation: number, width: number): void;
+    createFarm(x: number, z: number): void;
+    createAnimal(x: number, z: number, type: string): void;
+    createHaystack(x: number, z: number, scale: number): void;
+    createWell(x: number, z: number): void;
+    createSandPatches(): void;
+    createWaterPlane(x: number, z: number, width: number, depth: number): void;
+    createPalmTree(x: number, z: number, scale: number): void;
+    createBeachUmbrella(x: number, z: number, rotation: number): void;
+    createBeachChair(x: number, z: number, rotation: number): void;
+    createSeashell(x: number, z: number): void;
+    createSandcastle(x: number, z: number, scale: number): void;
+    createSeagull(x: number, y: number, z: number, flying: boolean): void;
+    createRockyTerrain(): void;
+    createMountainPeak(x: number, z: number, scale: number): void;
+    createCabin(x: number, z: number): void;
+    createCampfire(x: number, z: number): void;
+    createWaterfall(x: number, z: number): void;
+    createSnowPatch(x: number, z: number): void;
+    createEagle(x: number, y: number, z: number): void;
+    createDeer(x: number, z: number): void;
+}
+
+export interface LocationConfig {
+    name: string;
+    groundColor: number;
+    skyTopColor: number;
+    skyBottomColor: number;
+    generate: (world: WorldInterface) => void;
+}
+
+export const LOCATIONS: Record<string, LocationConfig> = {
     city: {
         name: 'City',
         groundColor: 0x6B7280,
         skyTopColor: 0x87ACBD,
         skyBottomColor: 0xD4E5ED,
-        generate: (world) => {
+        generate: (world: WorldInterface) => {
             world.createGround(0x6B7280, false);
             // Sky is now managed by WeatherSystem
 
@@ -114,7 +167,7 @@ const LOCATIONS = {
         groundColor: 0x5A8F5A,
         skyTopColor: 0x87CEEB,
         skyBottomColor: 0xE0F6FF,
-        generate: (world) => {
+        generate: (world: WorldInterface) => {
             world.createGround(0x5A8F5A, true);
             // Sky is now managed by WeatherSystem
 
@@ -240,7 +293,7 @@ const LOCATIONS = {
         groundColor: 0x7A9F5C,
         skyTopColor: 0x87CEEB,
         skyBottomColor: 0xFFF8DC,
-        generate: (world) => {
+        generate: (world: WorldInterface) => {
             world.createGround(0x7A9F5C, true);
             // Sky is now managed by WeatherSystem
 
@@ -395,7 +448,7 @@ const LOCATIONS = {
         groundColor: 0xF5DEB3,
         skyTopColor: 0x87CEEB,
         skyBottomColor: 0xFFE4B5,
-        generate: (world) => {
+        generate: (world: WorldInterface) => {
             world.createGround(0xF5DEB3, false);
             world.createSandPatches();
 
@@ -499,7 +552,7 @@ const LOCATIONS = {
         groundColor: 0x4A5D23,
         skyTopColor: 0x4169E1,
         skyBottomColor: 0x87CEEB,
-        generate: (world) => {
+        generate: (world: WorldInterface) => {
             world.createGround(0x4A5D23, true);
             world.createRockyTerrain();
 

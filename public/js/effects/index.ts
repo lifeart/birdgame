@@ -1,98 +1,185 @@
 // Visual Effects System - Trails, Auras, Particles
-class EffectsManager {
-    constructor(scene) {
+import * as THREE from 'three';
+import { WeatherSystem } from '../environment/weather.ts';
+
+interface TrailConfig {
+    color: number;
+    opacity: number;
+    width: number;
+    length: number;
+    fadeSpeed: number;
+    particles?: boolean;
+    particleColor?: number;
+    secondaryColor?: number;
+    rainbow?: boolean;
+}
+
+interface AuraConfig {
+    color?: number;
+    colors?: number[];
+    opacity: number;
+    size: number;
+    pulseSpeed: number;
+    pulseAmount: number;
+    rotateSpeed?: number;
+    secondaryColor?: number;
+    flickerSpeed?: number;
+}
+
+interface TrailPoint {
+    x: number;
+    y: number;
+    z: number;
+    age: number;
+}
+
+interface TrailParticle {
+    mesh: THREE.Mesh;
+    life: number;
+    velocity: THREE.Vector3;
+}
+
+interface Trail {
+    type: string;
+    config: TrailConfig;
+    points: TrailPoint[];
+    mesh: THREE.Line;
+    particles: TrailParticle[];
+    birdGroup: THREE.Group;
+}
+
+interface AuraMesh extends THREE.Mesh {
+    userData: { baseRotation?: number };
+}
+
+interface Aura {
+    type: string;
+    config: AuraConfig;
+    meshes: AuraMesh[];
+    birdGroup: THREE.Group;
+    time: number;
+}
+
+interface Particle {
+    mesh: THREE.Mesh;
+    velocity: THREE.Vector3;
+    life: number;
+}
+
+interface SharedGeometries {
+    trailParticle: THREE.SphereGeometry;
+    burstParticle: THREE.SphereGeometry;
+    burstParticleGolden: THREE.SphereGeometry;
+    levelUpParticle: THREE.SphereGeometry;
+    auraGlow: THREE.SphereGeometry;
+    auraInnerGlow: THREE.SphereGeometry;
+}
+
+export class EffectsManager {
+    private scene: THREE.Scene;
+    private trails: Map<string, Trail> = new Map();
+    private auras: Map<string, Aura> = new Map();
+    private particles: Particle[] = [];
+    private sharedGeometries: SharedGeometries | null = null;
+    private trailParticleMaterials: Map<number, THREE.MeshBasicMaterial> = new Map();
+
+    private trailConfigs: Record<string, TrailConfig> = {
+        basic: {
+            color: 0xFFFFFF,
+            opacity: 0.5,
+            width: 0.2,
+            length: 20,
+            fadeSpeed: 0.02
+        },
+        sparkle: {
+            color: 0xFFD700,
+            opacity: 0.7,
+            width: 0.3,
+            length: 25,
+            fadeSpeed: 0.015,
+            particles: true,
+            particleColor: 0xFFFFAA
+        },
+        fire: {
+            color: 0xFF4500,
+            secondaryColor: 0xFFAA00,
+            opacity: 0.8,
+            width: 0.4,
+            length: 30,
+            fadeSpeed: 0.025,
+            particles: true,
+            particleColor: 0xFF6600
+        },
+        cosmic: {
+            color: 0x9966FF,
+            secondaryColor: 0x00FFFF,
+            opacity: 0.6,
+            width: 0.35,
+            length: 35,
+            fadeSpeed: 0.01,
+            particles: true,
+            particleColor: 0xFFFFFF,
+            rainbow: true
+        }
+    };
+
+    private auraConfigs: Record<string, AuraConfig> = {
+        soft_glow: {
+            color: 0xFFFFAA,
+            opacity: 0.3,
+            size: 1.5,
+            pulseSpeed: 2,
+            pulseAmount: 0.2
+        },
+        rainbow: {
+            colors: [0xFF0000, 0xFF7F00, 0xFFFF00, 0x00FF00, 0x0000FF, 0x9400D3],
+            opacity: 0.4,
+            size: 2,
+            rotateSpeed: 1,
+            pulseSpeed: 1.5,
+            pulseAmount: 0.15
+        },
+        lightning: {
+            color: 0x00FFFF,
+            secondaryColor: 0xFFFFFF,
+            opacity: 0.5,
+            size: 2.5,
+            flickerSpeed: 10,
+            pulseSpeed: 3,
+            pulseAmount: 0.3
+        }
+    };
+
+    static MAX_PARTICLES = 100;
+
+    constructor(scene: THREE.Scene) {
         this.scene = scene;
-        this.trails = new Map(); // Bird ID -> Trail
-        this.auras = new Map();  // Bird ID -> Aura
-        this.particles = [];     // Global particles
-
-        // Initialize shared geometries for performance
         this._initSharedGeometries();
-
-        // Trail configurations
-        this.trailConfigs = {
-            basic: {
-                color: 0xFFFFFF,
-                opacity: 0.5,
-                width: 0.2,
-                length: 20,
-                fadeSpeed: 0.02
-            },
-            sparkle: {
-                color: 0xFFD700,
-                opacity: 0.7,
-                width: 0.3,
-                length: 25,
-                fadeSpeed: 0.015,
-                particles: true,
-                particleColor: 0xFFFFAA
-            },
-            fire: {
-                color: 0xFF4500,
-                secondaryColor: 0xFFAA00,
-                opacity: 0.8,
-                width: 0.4,
-                length: 30,
-                fadeSpeed: 0.025,
-                particles: true,
-                particleColor: 0xFF6600
-            },
-            cosmic: {
-                color: 0x9966FF,
-                secondaryColor: 0x00FFFF,
-                opacity: 0.6,
-                width: 0.35,
-                length: 35,
-                fadeSpeed: 0.01,
-                particles: true,
-                particleColor: 0xFFFFFF,
-                rainbow: true
-            }
-        };
-
-        // Aura configurations
-        this.auraConfigs = {
-            soft_glow: {
-                color: 0xFFFFAA,
-                opacity: 0.3,
-                size: 1.5,
-                pulseSpeed: 2,
-                pulseAmount: 0.2
-            },
-            rainbow: {
-                colors: [0xFF0000, 0xFF7F00, 0xFFFF00, 0x00FF00, 0x0000FF, 0x9400D3],
-                opacity: 0.4,
-                size: 2,
-                rotateSpeed: 1,
-                pulseSpeed: 1.5,
-                pulseAmount: 0.15
-            },
-            lightning: {
-                color: 0x00FFFF,
-                secondaryColor: 0xFFFFFF,
-                opacity: 0.5,
-                size: 2.5,
-                flickerSpeed: 10,
-                pulseSpeed: 3,
-                pulseAmount: 0.3
-            }
-        };
     }
 
-    _initSharedGeometries() {
-        // Shared geometries for particles to avoid per-particle allocation
+    private _initSharedGeometries(): void {
         this.sharedGeometries = {
             trailParticle: new THREE.SphereGeometry(0.1, 6, 6),
             burstParticle: new THREE.SphereGeometry(0.1, 6, 6),
             burstParticleGolden: new THREE.SphereGeometry(0.15, 6, 6),
             levelUpParticle: new THREE.SphereGeometry(0.2, 8, 8),
-            auraGlow: new THREE.SphereGeometry(1, 16, 16), // Base size, scaled per-aura
+            auraGlow: new THREE.SphereGeometry(1, 16, 16),
             auraInnerGlow: new THREE.SphereGeometry(0.7, 16, 16)
         };
     }
 
-    // Create a trail for a bird
-    createTrail(birdId, trailType, birdGroup) {
+    private getTrailParticleMaterial(color: number): THREE.MeshBasicMaterial {
+        if (!this.trailParticleMaterials.has(color)) {
+            this.trailParticleMaterials.set(color, new THREE.MeshBasicMaterial({
+                color: color,
+                transparent: true,
+                opacity: 0
+            }));
+        }
+        return this.trailParticleMaterials.get(color)!;
+    }
+
+    createTrail(birdId: string, trailType: string, birdGroup: THREE.Group): void {
         if (this.trails.has(birdId)) {
             this.removeTrail(birdId);
         }
@@ -100,16 +187,6 @@ class EffectsManager {
         const config = this.trailConfigs[trailType];
         if (!config) return;
 
-        const trail = {
-            type: trailType,
-            config: config,
-            points: [],
-            mesh: null,
-            particles: [],
-            birdGroup: birdGroup
-        };
-
-        // Create line geometry for trail
         const positions = new Float32Array(config.length * 3);
         const colors = new Float32Array(config.length * 4);
         const geometry = new THREE.BufferGeometry();
@@ -122,19 +199,23 @@ class EffectsManager {
             linewidth: 2
         });
 
-        trail.mesh = new THREE.Line(geometry, material);
-        trail.mesh.frustumCulled = false;
-        this.scene.add(trail.mesh);
+        const mesh = new THREE.Line(geometry, material);
+        mesh.frustumCulled = false;
+        this.scene.add(mesh);
 
-        // Create particles if needed - using shared geometry
-        if (config.particles) {
+        const trail: Trail = {
+            type: trailType,
+            config: config,
+            points: [],
+            mesh: mesh,
+            particles: [],
+            birdGroup: birdGroup
+        };
+
+        if (config.particles && config.particleColor !== undefined) {
+            const sharedMaterial = this.getTrailParticleMaterial(config.particleColor);
             for (let i = 0; i < 20; i++) {
-                const particleMat = new THREE.MeshBasicMaterial({
-                    color: config.particleColor,
-                    transparent: true,
-                    opacity: 0
-                });
-                const particle = new THREE.Mesh(this.sharedGeometries.trailParticle, particleMat);
+                const particle = new THREE.Mesh(this.sharedGeometries!.trailParticle, sharedMaterial);
                 particle.visible = false;
                 this.scene.add(particle);
                 trail.particles.push({
@@ -148,14 +229,12 @@ class EffectsManager {
         this.trails.set(birdId, trail);
     }
 
-    // Update trail position
-    updateTrail(birdId, position, velocity) {
+    updateTrail(birdId: string, position: THREE.Vector3, velocity?: THREE.Vector3): void {
         const trail = this.trails.get(birdId);
         if (!trail) return;
 
         const config = trail.config;
 
-        // Add new point
         trail.points.unshift({
             x: position.x,
             y: position.y,
@@ -163,14 +242,12 @@ class EffectsManager {
             age: 0
         });
 
-        // Remove old points
         while (trail.points.length > config.length) {
             trail.points.pop();
         }
 
-        // Update geometry
-        const positions = trail.mesh.geometry.attributes.position.array;
-        const colors = trail.mesh.geometry.attributes.color.array;
+        const positions = trail.mesh.geometry.attributes.position.array as Float32Array;
+        const colors = trail.mesh.geometry.attributes.color.array as Float32Array;
 
         for (let i = 0; i < config.length; i++) {
             const point = trail.points[i];
@@ -180,9 +257,8 @@ class EffectsManager {
                 positions[i * 3 + 2] = point.z;
 
                 const fade = 1 - (i / config.length);
-                let color = new THREE.Color(config.color);
+                const color = new THREE.Color(config.color);
 
-                // Rainbow effect for cosmic trail
                 if (config.rainbow) {
                     const hue = (i / config.length + Date.now() * 0.001) % 1;
                     color.setHSL(hue, 1, 0.5);
@@ -205,11 +281,9 @@ class EffectsManager {
         trail.mesh.geometry.attributes.position.needsUpdate = true;
         trail.mesh.geometry.attributes.color.needsUpdate = true;
 
-        // Update particles
         if (config.particles && velocity) {
             const speed = velocity.length();
             if (speed > 0.1) {
-                // Spawn new particle
                 for (const particle of trail.particles) {
                     if (particle.life <= 0) {
                         particle.mesh.position.copy(position);
@@ -220,19 +294,20 @@ class EffectsManager {
                             (Math.random() - 0.5) * 0.1 + 0.05,
                             (Math.random() - 0.5) * 0.1
                         );
-                        particle.mesh.material.opacity = 0.8;
+                        // Use scale for fade effect since material is shared
+                        particle.mesh.scale.setScalar(1);
                         break;
                     }
                 }
             }
 
-            // Update existing particles
             for (const particle of trail.particles) {
                 if (particle.life > 0) {
                     particle.life -= 0.02;
                     particle.mesh.position.add(particle.velocity);
-                    particle.velocity.y -= 0.002; // Gravity
-                    particle.mesh.material.opacity = particle.life * 0.8;
+                    particle.velocity.y -= 0.002;
+                    // Use scale for fade effect since material is shared
+                    particle.mesh.scale.setScalar(particle.life);
 
                     if (particle.life <= 0) {
                         particle.mesh.visible = false;
@@ -242,26 +317,27 @@ class EffectsManager {
         }
     }
 
-    // Remove trail
-    removeTrail(birdId) {
+    hasTrail(birdId: string): boolean {
+        return this.trails.has(birdId);
+    }
+
+    removeTrail(birdId: string): void {
         const trail = this.trails.get(birdId);
         if (trail) {
             this.scene.remove(trail.mesh);
             trail.mesh.geometry.dispose();
-            trail.mesh.material.dispose();
+            (trail.mesh.material as THREE.Material).dispose();
 
-            // Only dispose materials, geometry is shared
             for (const particle of trail.particles) {
                 this.scene.remove(particle.mesh);
-                particle.mesh.material.dispose();
+                // Don't dispose shared materials - they're managed by trailParticleMaterials
             }
 
             this.trails.delete(birdId);
         }
     }
 
-    // Create aura for a bird
-    createAura(birdId, auraType, birdGroup) {
+    createAura(birdId: string, auraType: string, birdGroup: THREE.Group): void {
         if (this.auras.has(birdId)) {
             this.removeAura(birdId);
         }
@@ -269,7 +345,7 @@ class EffectsManager {
         const config = this.auraConfigs[auraType];
         if (!config) return;
 
-        const aura = {
+        const aura: Aura = {
             type: auraType,
             config: config,
             meshes: [],
@@ -277,8 +353,7 @@ class EffectsManager {
             time: 0
         };
 
-        if (auraType === 'rainbow') {
-            // Create multiple colored rings
+        if (auraType === 'rainbow' && config.colors) {
             for (let i = 0; i < config.colors.length; i++) {
                 const ringGeom = new THREE.TorusGeometry(
                     config.size * (0.8 + i * 0.1),
@@ -291,32 +366,30 @@ class EffectsManager {
                     transparent: true,
                     opacity: config.opacity
                 });
-                const ring = new THREE.Mesh(ringGeom, ringMat);
+                const ring = new THREE.Mesh(ringGeom, ringMat) as AuraMesh;
                 ring.rotation.x = Math.PI / 2;
                 ring.userData.baseRotation = i * (Math.PI / config.colors.length);
                 birdGroup.add(ring);
                 aura.meshes.push(ring);
             }
         } else {
-            // Create simple glow sphere using shared geometry, scale to size
             const glowMat = new THREE.MeshBasicMaterial({
                 color: config.color,
                 transparent: true,
                 opacity: config.opacity
             });
-            const glow = new THREE.Mesh(this.sharedGeometries.auraGlow, glowMat);
+            const glow = new THREE.Mesh(this.sharedGeometries!.auraGlow, glowMat) as AuraMesh;
             glow.scale.setScalar(config.size);
             birdGroup.add(glow);
             aura.meshes.push(glow);
 
-            // Add secondary glow for lightning using shared geometry
             if (config.secondaryColor) {
                 const innerGlowMat = new THREE.MeshBasicMaterial({
                     color: config.secondaryColor,
                     transparent: true,
                     opacity: config.opacity * 0.5
                 });
-                const innerGlow = new THREE.Mesh(this.sharedGeometries.auraInnerGlow, innerGlowMat);
+                const innerGlow = new THREE.Mesh(this.sharedGeometries!.auraInnerGlow, innerGlowMat) as AuraMesh;
                 innerGlow.scale.setScalar(config.size);
                 birdGroup.add(innerGlow);
                 aura.meshes.push(innerGlow);
@@ -326,32 +399,28 @@ class EffectsManager {
         this.auras.set(birdId, aura);
     }
 
-    // Update aura animation
-    updateAura(birdId, deltaTime) {
+    updateAura(birdId: string, deltaTime: number): void {
         const aura = this.auras.get(birdId);
         if (!aura) return;
 
         aura.time += deltaTime;
         const config = aura.config;
 
-        if (aura.type === 'rainbow') {
-            // Rotate rings
+        if (aura.type === 'rainbow' && config.rotateSpeed !== undefined) {
             aura.meshes.forEach((ring, i) => {
-                ring.rotation.z = aura.time * config.rotateSpeed + ring.userData.baseRotation;
+                ring.rotation.z = aura.time * config.rotateSpeed! + (ring.userData.baseRotation || 0);
                 const pulse = 1 + Math.sin(aura.time * config.pulseSpeed + i * 0.5) * config.pulseAmount;
                 ring.scale.set(pulse, pulse, 1);
             });
         } else if (aura.type === 'lightning') {
-            // Flicker effect
             const flicker = Math.random() > 0.9 ? 1.5 : 1;
             const pulse = 1 + Math.sin(aura.time * config.pulseSpeed) * config.pulseAmount;
 
-            aura.meshes.forEach((mesh, i) => {
+            aura.meshes.forEach((mesh) => {
                 mesh.scale.set(pulse * flicker, pulse * flicker, pulse * flicker);
-                mesh.material.opacity = config.opacity * (0.5 + Math.random() * 0.5);
+                (mesh.material as THREE.MeshBasicMaterial).opacity = config.opacity * (0.5 + Math.random() * 0.5);
             });
         } else {
-            // Simple pulse
             const pulse = 1 + Math.sin(aura.time * config.pulseSpeed) * config.pulseAmount;
             aura.meshes.forEach(mesh => {
                 mesh.scale.set(pulse, pulse, pulse);
@@ -359,53 +428,41 @@ class EffectsManager {
         }
     }
 
-    // Remove aura
-    removeAura(birdId) {
+    removeAura(birdId: string): void {
         const aura = this.auras.get(birdId);
         if (aura) {
             aura.meshes.forEach(mesh => {
                 if (aura.birdGroup) {
                     aura.birdGroup.remove(mesh);
                 }
-                // Only dispose material, geometry may be shared
-                // Rainbow auras have their own geometry (torus), others use shared
                 if (aura.type === 'rainbow' && mesh.geometry) {
                     mesh.geometry.dispose();
                 }
-                mesh.material.dispose();
+                (mesh.material as THREE.Material).dispose();
             });
             this.auras.delete(birdId);
         }
     }
 
-    // Update all effects
-    update(deltaTime) {
-        // Update all auras
-        this.auras.forEach((aura, birdId) => {
+    update(deltaTime: number): void {
+        this.auras.forEach((_aura, birdId) => {
             this.updateAura(birdId, deltaTime);
         });
     }
 
-    // Maximum particles to prevent memory issues
-    static MAX_PARTICLES = 100;
-
-    // Create collection burst effect
-    createCollectionBurst(position, isGolden = false) {
+    createCollectionBurst(position: THREE.Vector3, isGolden: boolean = false): void {
         const particleCount = isGolden ? 20 : 10;
         const color = isGolden ? 0xFFD700 : 0x90EE90;
 
-        // Clean up old particles if we're at the limit
         while (this.particles.length > EffectsManager.MAX_PARTICLES - particleCount) {
             const oldParticle = this.particles.shift();
             if (oldParticle) {
                 this.scene.remove(oldParticle.mesh);
-                // Only dispose material, geometry is shared
-                if (oldParticle.mesh.material) oldParticle.mesh.material.dispose();
+                (oldParticle.mesh.material as THREE.Material).dispose();
             }
         }
 
-        // Use shared geometry based on type
-        const geom = isGolden ? this.sharedGeometries.burstParticleGolden : this.sharedGeometries.burstParticle;
+        const geom = isGolden ? this.sharedGeometries!.burstParticleGolden : this.sharedGeometries!.burstParticle;
 
         for (let i = 0; i < particleCount; i++) {
             const particleMat = new THREE.MeshBasicMaterial({
@@ -431,8 +488,7 @@ class EffectsManager {
         }
     }
 
-    // Create level up effect
-    createLevelUpBurst(position) {
+    createLevelUpBurst(position: THREE.Vector3): void {
         const particleCount = 30;
         const colors = [0xFFD700, 0xFFFFFF, 0x00FFFF];
 
@@ -443,8 +499,7 @@ class EffectsManager {
                 transparent: true,
                 opacity: 1
             });
-            // Use shared geometry for level up particles
-            const particle = new THREE.Mesh(this.sharedGeometries.levelUpParticle, particleMat);
+            const particle = new THREE.Mesh(this.sharedGeometries!.levelUpParticle, particleMat);
             particle.position.copy(position);
 
             const angle = (i / particleCount) * Math.PI * 2;
@@ -463,39 +518,38 @@ class EffectsManager {
         }
     }
 
-    // Update global particles
-    updateParticles(deltaTime) {
+    updateParticles(deltaTime: number): void {
         for (let i = this.particles.length - 1; i >= 0; i--) {
             const particle = this.particles[i];
             particle.life -= deltaTime;
 
             if (particle.life <= 0) {
                 this.scene.remove(particle.mesh);
-                // Only dispose material, geometry is shared
-                particle.mesh.material.dispose();
+                (particle.mesh.material as THREE.Material).dispose();
                 this.particles.splice(i, 1);
             } else {
                 particle.mesh.position.add(particle.velocity);
-                particle.velocity.y -= 0.01; // Gravity
-                particle.mesh.material.opacity = Math.min(1, particle.life);
-                particle.mesh.scale.multiplyScalar(0.98); // Shrink
+                particle.velocity.y -= 0.01;
+                (particle.mesh.material as THREE.MeshBasicMaterial).opacity = Math.min(1, particle.life);
+                particle.mesh.scale.multiplyScalar(0.98);
             }
         }
     }
 
-    // Clean up all effects
-    cleanup() {
-        this.trails.forEach((trail, birdId) => this.removeTrail(birdId));
-        this.auras.forEach((aura, birdId) => this.removeAura(birdId));
+    cleanup(): void {
+        this.trails.forEach((_trail, birdId) => this.removeTrail(birdId));
+        this.auras.forEach((_aura, birdId) => this.removeAura(birdId));
 
         this.particles.forEach(particle => {
             this.scene.remove(particle.mesh);
-            // Only dispose material, geometry is shared
-            particle.mesh.material.dispose();
+            (particle.mesh.material as THREE.Material).dispose();
         });
         this.particles = [];
 
-        // Dispose shared geometries
+        // Dispose shared trail particle materials
+        this.trailParticleMaterials.forEach(material => material.dispose());
+        this.trailParticleMaterials.clear();
+
         if (this.sharedGeometries) {
             Object.values(this.sharedGeometries).forEach(geom => {
                 if (geom && geom.dispose) geom.dispose();
@@ -506,60 +560,80 @@ class EffectsManager {
 }
 
 // ==================== AMBIENT PARTICLE SYSTEM ====================
-// Creates atmospheric particles: fireflies, dust, feathers
 
-class AmbientParticleSystem {
-    constructor(scene, weatherSystem) {
+interface AmbientParticleConfig {
+    color: number;
+    emissive: boolean;
+    size: number;
+    speed: number;
+    lifespan: number;
+    glow: boolean;
+    spawnHeight: { min: number; max: number };
+    movement: 'float' | 'drift' | 'fall';
+}
+
+interface PooledParticle {
+    mesh: THREE.Mesh;
+    active: boolean;
+    velocity: THREE.Vector3;
+    life: number;
+    maxLife: number;
+    type: string | null;
+    phase: number;
+    baseSize?: number;
+}
+
+export class AmbientParticleSystem {
+    private scene: THREE.Scene;
+    private weatherSystem: WeatherSystem | null;
+    private particles: PooledParticle[] = [];
+    private particlePool: PooledParticle[] = [];
+    private maxParticles: number = 100;
+    private currentType: string = 'none';
+    private spawnRate: number = 0.15;
+    private lastSpawn: number = 0;
+    private sharedGeometry: THREE.SphereGeometry | null = null;
+
+    private configs: Record<string, AmbientParticleConfig> = {
+        fireflies: {
+            color: 0xFFFF88,
+            emissive: true,
+            size: 0.12,
+            speed: 0.4,
+            lifespan: 10,
+            glow: true,
+            spawnHeight: { min: 1, max: 12 },
+            movement: 'float'
+        },
+        dust: {
+            color: 0xDDCCAA,
+            emissive: false,
+            size: 0.06,
+            speed: 0.15,
+            lifespan: 8,
+            glow: false,
+            spawnHeight: { min: 0.5, max: 15 },
+            movement: 'drift'
+        },
+        feathers: {
+            color: 0xFFFFFF,
+            emissive: false,
+            size: 0.15,
+            speed: 0.25,
+            lifespan: 12,
+            glow: false,
+            spawnHeight: { min: 3, max: 25 },
+            movement: 'fall'
+        }
+    };
+
+    constructor(scene: THREE.Scene, weatherSystem: WeatherSystem | null) {
         this.scene = scene;
         this.weatherSystem = weatherSystem;
-
-        this.particles = [];
-        this.particlePool = [];
-        this.maxParticles = 100;
-
-        this.currentType = 'none';
-        this.spawnRate = 0.15;
-        this.lastSpawn = 0;
-
-        // Particle type configurations
-        this.configs = {
-            fireflies: {
-                color: 0xFFFF88,
-                emissive: true,
-                size: 0.12,
-                speed: 0.4,
-                lifespan: 10,
-                glow: true,
-                spawnHeight: { min: 1, max: 12 },
-                movement: 'float'
-            },
-            dust: {
-                color: 0xDDCCAA,
-                emissive: false,
-                size: 0.06,
-                speed: 0.15,
-                lifespan: 8,
-                glow: false,
-                spawnHeight: { min: 0.5, max: 15 },
-                movement: 'drift'
-            },
-            feathers: {
-                color: 0xFFFFFF,
-                emissive: false,
-                size: 0.15,
-                speed: 0.25,
-                lifespan: 12,
-                glow: false,
-                spawnHeight: { min: 3, max: 25 },
-                movement: 'fall'
-            }
-        };
-
         this.initPool();
     }
 
-    initPool() {
-        // Share geometry between all particles for better performance
+    private initPool(): void {
         this.sharedGeometry = new THREE.SphereGeometry(1, 6, 6);
 
         for (let i = 0; i < this.maxParticles; i++) {
@@ -583,16 +657,16 @@ class AmbientParticleSystem {
         }
     }
 
-    setType(type) {
+    setType(type: string): void {
         if (this.configs[type] || type === 'none') {
             this.currentType = type;
         }
     }
 
-    autoSetType() {
+    autoSetType(): void {
         if (!this.weatherSystem) return;
 
-        const time = this.weatherSystem.timeOfDay;
+        const time = this.weatherSystem.getTimeOfDay();
         if (typeof time !== 'number' || isNaN(time)) return;
 
         const isNight = time < 5.5 || time > 20.5;
@@ -607,7 +681,7 @@ class AmbientParticleSystem {
         }
     }
 
-    spawn(cameraPosition) {
+    spawn(cameraPosition: THREE.Vector3): void {
         const config = this.configs[this.currentType];
         if (!config) return;
 
@@ -621,12 +695,10 @@ class AmbientParticleSystem {
         particle.maxLife = config.lifespan;
         particle.phase = Math.random() * Math.PI * 2;
 
-        // Set appearance
-        particle.mesh.material.color.setHex(config.color);
+        (particle.mesh.material as THREE.MeshBasicMaterial).color.setHex(config.color);
         particle.mesh.scale.setScalar(config.size);
         particle.baseSize = config.size;
 
-        // Spawn position around camera
         const spawnRadius = 25;
         const angle = Math.random() * Math.PI * 2;
         const dist = 5 + Math.random() * spawnRadius;
@@ -637,7 +709,6 @@ class AmbientParticleSystem {
 
         particle.mesh.position.set(spawnX, spawnY, spawnZ);
 
-        // Initial velocity
         switch (config.movement) {
             case 'float':
                 particle.velocity.set(
@@ -662,23 +733,20 @@ class AmbientParticleSystem {
                 break;
         }
 
-        particle.mesh.material.opacity = 0.8;
+        (particle.mesh.material as THREE.MeshBasicMaterial).opacity = 0.8;
         this.particles.push(particle);
     }
 
-    update(deltaTime, cameraPosition, time) {
-        // Validate parameters
+    update(deltaTime: number, cameraPosition: THREE.Vector3, time: number): void {
         if (!cameraPosition) return;
         if (typeof time !== 'number' || isNaN(time)) {
             time = Date.now() / 1000;
         }
 
-        // Auto-switch type occasionally
         if (Math.random() < 0.005) {
             this.autoSetType();
         }
 
-        // Spawn new particles
         if (this.currentType !== 'none' && this.particles.length < this.maxParticles * 0.7) {
             this.lastSpawn += deltaTime;
             if (this.lastSpawn > this.spawnRate) {
@@ -687,10 +755,9 @@ class AmbientParticleSystem {
             }
         }
 
-        // Update existing particles
         for (let i = this.particles.length - 1; i >= 0; i--) {
             const particle = this.particles[i];
-            const config = this.configs[particle.type];
+            const config = particle.type ? this.configs[particle.type] : null;
             if (!config) continue;
 
             particle.life -= deltaTime;
@@ -702,12 +769,10 @@ class AmbientParticleSystem {
                 continue;
             }
 
-            // Update position
             particle.mesh.position.x += particle.velocity.x * deltaTime * 60;
             particle.mesh.position.y += particle.velocity.y * deltaTime * 60;
             particle.mesh.position.z += particle.velocity.z * deltaTime * 60;
 
-            // Movement-specific updates
             switch (config.movement) {
                 case 'float':
                     particle.velocity.x += (Math.random() - 0.5) * 0.01;
@@ -715,9 +780,8 @@ class AmbientParticleSystem {
                     particle.velocity.z += (Math.random() - 0.5) * 0.01;
                     particle.velocity.clampLength(0, config.speed);
                     if (config.glow) {
-                        // Simulate glow with pulsing opacity and scale
                         const pulse = 0.4 + Math.sin(time * 4 + particle.phase) * 0.4;
-                        particle.mesh.material.opacity = pulse * (particle.life / particle.maxLife);
+                        (particle.mesh.material as THREE.MeshBasicMaterial).opacity = pulse * (particle.life / particle.maxLife);
                         const scalePulse = 1 + Math.sin(time * 4 + particle.phase) * 0.3;
                         particle.mesh.scale.setScalar((particle.baseSize || config.size) * scalePulse);
                     }
@@ -731,13 +795,11 @@ class AmbientParticleSystem {
                     break;
             }
 
-            // Fade out near end of life
             const fadeStart = particle.maxLife * 0.25;
             if (particle.life < fadeStart && !config.glow) {
-                particle.mesh.material.opacity = (particle.life / fadeStart) * 0.8;
+                (particle.mesh.material as THREE.MeshBasicMaterial).opacity = (particle.life / fadeStart) * 0.8;
             }
 
-            // Remove if too far from camera
             const dx = particle.mesh.position.x - cameraPosition.x;
             const dz = particle.mesh.position.z - cameraPosition.z;
             if (dx * dx + dz * dz > 2500) {
@@ -746,7 +808,7 @@ class AmbientParticleSystem {
         }
     }
 
-    clear() {
+    clear(): void {
         this.particles.forEach(p => {
             p.active = false;
             p.mesh.visible = false;
@@ -754,13 +816,11 @@ class AmbientParticleSystem {
         this.particles = [];
     }
 
-    cleanup() {
+    cleanup(): void {
         this.particlePool.forEach(p => {
             this.scene.remove(p.mesh);
-            // Only dispose material, geometry is shared
-            if (p.mesh.material) p.mesh.material.dispose();
+            (p.mesh.material as THREE.Material).dispose();
         });
-        // Dispose shared geometry once
         if (this.sharedGeometry) {
             this.sharedGeometry.dispose();
             this.sharedGeometry = null;
@@ -771,13 +831,11 @@ class AmbientParticleSystem {
 }
 
 // ==================== COLOR PALETTE ====================
-// Pastel mode for softer, more pleasant visuals
 
-const ColorPalette = {
+export const ColorPalette = {
     pastelMode: false,
 
-    // Convert any color to pastel version
-    toPastel(hexColor) {
+    toPastel(hexColor: number): number {
         if (!this.pastelMode) return hexColor;
         if (typeof hexColor !== 'number' || isNaN(hexColor)) return hexColor;
 
@@ -785,7 +843,6 @@ const ColorPalette = {
         const g = (hexColor >> 8) & 0xFF;
         const b = hexColor & 0xFF;
 
-        // Pastel formula: mix with white and reduce saturation
         const pastelFactor = 0.45;
         const newR = Math.round(r + (255 - r) * pastelFactor);
         const newG = Math.round(g + (255 - g) * pastelFactor);
@@ -794,23 +851,19 @@ const ColorPalette = {
         return (newR << 16) | (newG << 8) | newB;
     },
 
-    // Apply pastel mode to a THREE.Color
-    applyToColor(color) {
+    applyToColor(color: THREE.Color): THREE.Color {
         if (!this.pastelMode || !color) return color;
         const hex = color.getHex();
         color.setHex(this.toPastel(hex));
         return color;
     },
 
-    toggle() {
+    toggle(): boolean {
         this.pastelMode = !this.pastelMode;
         return this.pastelMode;
     },
 
-    isEnabled() {
+    isEnabled(): boolean {
         return this.pastelMode;
     }
 };
-
-// Make ColorPalette available globally
-window.ColorPalette = ColorPalette;

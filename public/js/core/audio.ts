@@ -1,50 +1,52 @@
 // Audio Manager - Funny synthesized sounds using Web Audio API
-class AudioManager {
-    constructor() {
-        this.ctx = null;
-        this.enabled = true;
-        this.volume = 0.3;
 
-        // Initialize on first user interaction (browser requirement)
-        this.initialized = false;
-
-        // Cooldowns to prevent sound spam
-        this.lastFlapTime = 0;
-        this.flapCooldown = 150;
-        this.lastCollisionTime = 0;
-        this.collisionCooldown = 500; // 500ms between collision sounds
-
-        // Pre-created buffer pools for frequently-used sounds
-        this.flapBufferPool = [];
-        this.flapBufferPoolSize = 5;
-        this.flapBufferIndex = 0;
+// Extend Window interface for webkit AudioContext
+declare global {
+    interface Window {
+        webkitAudioContext?: typeof AudioContext;
     }
+}
 
-    init() {
+export class AudioManager {
+    private ctx: AudioContext | null = null;
+    private enabled: boolean = true;
+    private volume: number = 0.3;
+    private initialized: boolean = false;
+
+    // Cooldowns to prevent sound spam
+    private lastFlapTime: number = 0;
+    private flapCooldown: number = 150;
+    private lastCollisionTime: number = 0;
+    private collisionCooldown: number = 500;
+
+    // Pre-created buffer pools for frequently-used sounds
+    private flapBufferPool: AudioBuffer[] = [];
+    private flapBufferPoolSize: number = 5;
+    private flapBufferIndex: number = 0;
+
+    init(): void {
         if (this.initialized) return;
 
         try {
-            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-            this.initialized = true;
-
-            // Pre-create flap buffers for better performance
-            this._initBufferPools();
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            if (AudioContextClass) {
+                this.ctx = new AudioContextClass();
+                this.initialized = true;
+                this._initBufferPools();
+            }
         } catch (e) {
             console.warn('Web Audio API not supported');
             this.enabled = false;
         }
     }
 
-    // Pre-create audio buffers that are used frequently
-    _initBufferPools() {
+    private _initBufferPools(): void {
         if (!this.ctx) return;
 
-        // Create pool of flap sound buffers (noise bursts)
         const bufferSize = Math.floor(this.ctx.sampleRate * 0.08);
         for (let p = 0; p < this.flapBufferPoolSize; p++) {
             const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
             const data = buffer.getChannelData(0);
-            // Each buffer has slightly different noise for variety
             for (let i = 0; i < bufferSize; i++) {
                 data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
             }
@@ -52,17 +54,13 @@ class AudioManager {
         }
     }
 
-    // Ensure audio context is running (needed after user interaction)
-    resume() {
+    resume(): void {
         if (this.ctx && this.ctx.state === 'suspended') {
             this.ctx.resume();
         }
     }
 
-    // === SOUND GENERATORS ===
-
-    // Wing flap - whooshy sound (uses pre-created buffer pool for performance)
-    playFlap() {
+    playFlap(): void {
         if (!this.enabled || !this.ctx) return;
 
         const now = Date.now();
@@ -72,17 +70,14 @@ class AudioManager {
         const ctx = this.ctx;
         const t = ctx.currentTime;
 
-        // Use pre-created buffer from pool (cycles through for variety)
         const buffer = this.flapBufferPool[this.flapBufferIndex];
         this.flapBufferIndex = (this.flapBufferIndex + 1) % this.flapBufferPoolSize;
 
-        // If pool isn't initialized yet, skip
         if (!buffer) return;
 
         const noise = ctx.createBufferSource();
         noise.buffer = buffer;
 
-        // Bandpass filter for whoosh character
         const filter = ctx.createBiquadFilter();
         filter.type = 'bandpass';
         filter.frequency.setValueAtTime(800, t);
@@ -101,28 +96,24 @@ class AudioManager {
         noise.stop(t + 0.1);
     }
 
-    // Collect worm - funny "boing" pop sound
-    playWormCollect() {
+    playWormCollect(): void {
         if (!this.enabled || !this.ctx) return;
 
         const ctx = this.ctx;
         const t = ctx.currentTime;
 
-        // Main "pop" oscillator
         const osc1 = ctx.createOscillator();
         osc1.type = 'sine';
         osc1.frequency.setValueAtTime(600, t);
         osc1.frequency.exponentialRampToValueAtTime(1200, t + 0.05);
         osc1.frequency.exponentialRampToValueAtTime(400, t + 0.15);
 
-        // Second oscillator for richness
         const osc2 = ctx.createOscillator();
         osc2.type = 'triangle';
         osc2.frequency.setValueAtTime(300, t);
         osc2.frequency.exponentialRampToValueAtTime(800, t + 0.05);
         osc2.frequency.exponentialRampToValueAtTime(200, t + 0.12);
 
-        // "Boing" spring effect
         const osc3 = ctx.createOscillator();
         osc3.type = 'sine';
         osc3.frequency.setValueAtTime(150, t);
@@ -158,8 +149,7 @@ class AudioManager {
         osc3.stop(t + 0.2);
     }
 
-    // Collision dispatcher - plays different sounds based on object type
-    playCollision(objectType = 'building') {
+    playCollision(objectType: string = 'building'): void {
         if (!this.enabled || !this.ctx) return;
 
         const now = Date.now();
@@ -186,18 +176,15 @@ class AudioManager {
         }
     }
 
-    // Building hit - deep concrete thud
-    playBuildingHit() {
-        const ctx = this.ctx;
+    private playBuildingHit(): void {
+        const ctx = this.ctx!;
         const t = ctx.currentTime;
 
-        // Low thud
         const osc1 = ctx.createOscillator();
         osc1.type = 'sine';
         osc1.frequency.setValueAtTime(80, t);
         osc1.frequency.exponentialRampToValueAtTime(40, t + 0.2);
 
-        // Impact noise
         const bufferSize = ctx.sampleRate * 0.08;
         const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
         const data = buffer.getChannelData(0);
@@ -231,24 +218,20 @@ class AudioManager {
         noise.stop(t + 0.15);
     }
 
-    // Tree hit - woody thunk with rustling
-    playTreeHit() {
-        const ctx = this.ctx;
+    private playTreeHit(): void {
+        const ctx = this.ctx!;
         const t = ctx.currentTime;
 
-        // Woody thunk
         const osc1 = ctx.createOscillator();
         osc1.type = 'triangle';
         osc1.frequency.setValueAtTime(200, t);
         osc1.frequency.exponentialRampToValueAtTime(80, t + 0.1);
 
-        // Higher wood resonance
         const osc2 = ctx.createOscillator();
         osc2.type = 'sine';
         osc2.frequency.setValueAtTime(400, t);
         osc2.frequency.exponentialRampToValueAtTime(150, t + 0.08);
 
-        // Rustling leaves noise
         const bufferSize = ctx.sampleRate * 0.3;
         const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
         const data = buffer.getChannelData(0);
@@ -291,25 +274,21 @@ class AudioManager {
         noise.stop(t + 0.4);
     }
 
-    // Metal hit - clang with resonance
-    playMetalHit() {
-        const ctx = this.ctx;
+    private playMetalHit(): void {
+        const ctx = this.ctx!;
         const t = ctx.currentTime;
 
-        // Main clang
         const osc1 = ctx.createOscillator();
         osc1.type = 'square';
         osc1.frequency.setValueAtTime(800, t);
         osc1.frequency.exponentialRampToValueAtTime(600, t + 0.3);
 
-        // High ring
         const osc2 = ctx.createOscillator();
         osc2.type = 'sine';
         osc2.frequency.setValueAtTime(1200, t);
         osc2.frequency.setValueAtTime(1180, t + 0.1);
         osc2.frequency.setValueAtTime(1200, t + 0.2);
 
-        // Metallic overtone
         const osc3 = ctx.createOscillator();
         osc3.type = 'sine';
         osc3.frequency.setValueAtTime(2400, t);
@@ -341,24 +320,20 @@ class AudioManager {
         osc3.stop(t + 0.4);
     }
 
-    // Stone hit - heavy thud with crack
-    playStoneHit() {
-        const ctx = this.ctx;
+    private playStoneHit(): void {
+        const ctx = this.ctx!;
         const t = ctx.currentTime;
 
-        // Deep thud
         const osc1 = ctx.createOscillator();
         osc1.type = 'sine';
         osc1.frequency.setValueAtTime(100, t);
         osc1.frequency.exponentialRampToValueAtTime(50, t + 0.15);
 
-        // Crack sound
         const osc2 = ctx.createOscillator();
         osc2.type = 'sawtooth';
         osc2.frequency.setValueAtTime(300, t);
         osc2.frequency.exponentialRampToValueAtTime(100, t + 0.05);
 
-        // Stone debris noise
         const bufferSize = ctx.sampleRate * 0.1;
         const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
         const data = buffer.getChannelData(0);
@@ -401,24 +376,20 @@ class AudioManager {
         noise.stop(t + 0.15);
     }
 
-    // Wood/house hit - hollow thunk
-    playWoodHit() {
-        const ctx = this.ctx;
+    private playWoodHit(): void {
+        const ctx = this.ctx!;
         const t = ctx.currentTime;
 
-        // Hollow wood thunk
         const osc1 = ctx.createOscillator();
         osc1.type = 'triangle';
         osc1.frequency.setValueAtTime(250, t);
         osc1.frequency.exponentialRampToValueAtTime(100, t + 0.1);
 
-        // Wood resonance
         const osc2 = ctx.createOscillator();
         osc2.type = 'sine';
         osc2.frequency.setValueAtTime(180, t);
         osc2.frequency.exponentialRampToValueAtTime(120, t + 0.15);
 
-        // Creak
         const osc3 = ctx.createOscillator();
         osc3.type = 'sawtooth';
         osc3.frequency.setValueAtTime(60, t + 0.05);
@@ -458,14 +429,12 @@ class AudioManager {
         osc3.stop(t + 0.2);
     }
 
-    // Player joined - happy chirp
-    playPlayerJoined() {
+    playPlayerJoined(): void {
         if (!this.enabled || !this.ctx) return;
 
         const ctx = this.ctx;
         const t = ctx.currentTime;
 
-        // Ascending chirps
         const notes = [523, 659, 784]; // C5, E5, G5
 
         notes.forEach((freq, i) => {
@@ -489,14 +458,12 @@ class AudioManager {
         });
     }
 
-    // Player left - sad descending tone
-    playPlayerLeft() {
+    playPlayerLeft(): void {
         if (!this.enabled || !this.ctx) return;
 
         const ctx = this.ctx;
         const t = ctx.currentTime;
 
-        // Descending sad notes
         const notes = [392, 349, 294]; // G4, F4, D4
 
         notes.forEach((freq, i) => {
@@ -519,8 +486,7 @@ class AudioManager {
         });
     }
 
-    // Chat message - quick blip
-    playChatMessage() {
+    playChatMessage(): void {
         if (!this.enabled || !this.ctx) return;
 
         const ctx = this.ctx;
@@ -543,19 +509,17 @@ class AudioManager {
         osc.stop(t + 0.1);
     }
 
-    // Game start - fanfare
-    playGameStart() {
+    playGameStart(): void {
         if (!this.enabled || !this.ctx) return;
 
         const ctx = this.ctx;
         const t = ctx.currentTime;
 
-        // Fanfare notes
         const melody = [
-            { freq: 523, time: 0, dur: 0.1 },     // C5
-            { freq: 659, time: 0.1, dur: 0.1 },   // E5
-            { freq: 784, time: 0.2, dur: 0.1 },   // G5
-            { freq: 1047, time: 0.35, dur: 0.25 } // C6
+            { freq: 523, time: 0, dur: 0.1 },
+            { freq: 659, time: 0.1, dur: 0.1 },
+            { freq: 784, time: 0.2, dur: 0.1 },
+            { freq: 1047, time: 0.35, dur: 0.25 }
         ];
 
         melody.forEach(note => {
@@ -569,7 +533,6 @@ class AudioManager {
             gain.gain.setValueAtTime(this.volume * 0.25, t + note.time + note.dur * 0.7);
             gain.gain.exponentialRampToValueAtTime(0.01, t + note.time + note.dur);
 
-            // Add some harmonics
             const osc2 = ctx.createOscillator();
             osc2.type = 'sine';
             osc2.frequency.setValueAtTime(note.freq * 2, t + note.time);
@@ -591,14 +554,12 @@ class AudioManager {
         });
     }
 
-    // Location change - whoosh transition
-    playLocationChange() {
+    playLocationChange(): void {
         if (!this.enabled || !this.ctx) return;
 
         const ctx = this.ctx;
         const t = ctx.currentTime;
 
-        // Sweeping whoosh
         const osc = ctx.createOscillator();
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(100, t);
@@ -624,7 +585,6 @@ class AudioManager {
         osc.start(t);
         osc.stop(t + 0.7);
 
-        // Magic sparkle overlay
         for (let i = 0; i < 5; i++) {
             const sparkle = ctx.createOscillator();
             sparkle.type = 'sine';
@@ -645,8 +605,7 @@ class AudioManager {
         }
     }
 
-    // Pause menu open - soft click
-    playPause() {
+    playPause(): void {
         if (!this.enabled || !this.ctx) return;
 
         const ctx = this.ctx;
@@ -668,8 +627,7 @@ class AudioManager {
         osc.stop(t + 0.1);
     }
 
-    // Resume - higher pitched click
-    playResume() {
+    playResume(): void {
         if (!this.enabled || !this.ctx) return;
 
         const ctx = this.ctx;
@@ -691,8 +649,7 @@ class AudioManager {
         osc.stop(t + 0.1);
     }
 
-    // Bird chirp - random cute chirp
-    playChirp() {
+    playChirp(): void {
         if (!this.enabled || !this.ctx) return;
 
         const ctx = this.ctx;
@@ -703,21 +660,17 @@ class AudioManager {
         const osc = ctx.createOscillator();
         osc.type = 'sine';
 
-        // Random chirp pattern
         const pattern = Math.floor(Math.random() * 3);
         if (pattern === 0) {
-            // Rising chirp
             osc.frequency.setValueAtTime(baseFreq, t);
             osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.5, t + 0.05);
             osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.3, t + 0.08);
         } else if (pattern === 1) {
-            // Double chirp
             osc.frequency.setValueAtTime(baseFreq, t);
             osc.frequency.setValueAtTime(baseFreq * 1.3, t + 0.04);
             osc.frequency.setValueAtTime(baseFreq, t + 0.06);
             osc.frequency.setValueAtTime(baseFreq * 1.3, t + 0.1);
         } else {
-            // Trill
             for (let i = 0; i < 4; i++) {
                 osc.frequency.setValueAtTime(baseFreq * (i % 2 === 0 ? 1 : 1.2), t + i * 0.025);
             }
@@ -734,14 +687,12 @@ class AudioManager {
         osc.stop(t + 0.15);
     }
 
-    // Golden Worm collect - special sparkly sound
-    playGoldenWorm() {
+    playGoldenWorm(): void {
         if (!this.enabled || !this.ctx) return;
 
         const ctx = this.ctx;
         const t = ctx.currentTime;
 
-        // Main golden chime
         const notes = [1047, 1319, 1568, 2093]; // C6, E6, G6, C7
 
         notes.forEach((freq, i) => {
@@ -755,10 +706,9 @@ class AudioManager {
             gain.gain.linearRampToValueAtTime(this.volume * 0.4, startTime + 0.02);
             gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.3);
 
-            // Add shimmer with second oscillator
             const osc2 = ctx.createOscillator();
             osc2.type = 'sine';
-            osc2.frequency.setValueAtTime(freq * 2.01, startTime); // Slight detune for shimmer
+            osc2.frequency.setValueAtTime(freq * 2.01, startTime);
 
             const gain2 = ctx.createGain();
             gain2.gain.setValueAtTime(0, startTime);
@@ -776,7 +726,6 @@ class AudioManager {
             osc2.stop(startTime + 0.3);
         });
 
-        // Sparkle overlay
         for (let i = 0; i < 8; i++) {
             const sparkle = ctx.createOscillator();
             sparkle.type = 'sine';
@@ -797,21 +746,19 @@ class AudioManager {
         }
     }
 
-    // Level Up - triumphant fanfare
-    playLevelUp() {
+    playLevelUp(): void {
         if (!this.enabled || !this.ctx) return;
 
         const ctx = this.ctx;
         const t = ctx.currentTime;
 
-        // Victory fanfare
         const melody = [
-            { freq: 523, time: 0, dur: 0.1 },      // C5
-            { freq: 659, time: 0.1, dur: 0.1 },    // E5
-            { freq: 784, time: 0.2, dur: 0.1 },    // G5
-            { freq: 1047, time: 0.35, dur: 0.15 }, // C6
-            { freq: 988, time: 0.5, dur: 0.1 },    // B5
-            { freq: 1047, time: 0.65, dur: 0.35 }  // C6 (sustained)
+            { freq: 523, time: 0, dur: 0.1 },
+            { freq: 659, time: 0.1, dur: 0.1 },
+            { freq: 784, time: 0.2, dur: 0.1 },
+            { freq: 1047, time: 0.35, dur: 0.15 },
+            { freq: 988, time: 0.5, dur: 0.1 },
+            { freq: 1047, time: 0.65, dur: 0.35 }
         ];
 
         melody.forEach(note => {
@@ -825,7 +772,6 @@ class AudioManager {
             gain.gain.setValueAtTime(this.volume * 0.3, t + note.time + note.dur * 0.7);
             gain.gain.exponentialRampToValueAtTime(0.01, t + note.time + note.dur);
 
-            // Harmonics
             const osc2 = ctx.createOscillator();
             osc2.type = 'sine';
             osc2.frequency.setValueAtTime(note.freq * 2, t + note.time);
@@ -846,7 +792,6 @@ class AudioManager {
             osc2.stop(t + note.time + note.dur + 0.1);
         });
 
-        // Victory sparkles
         for (let i = 0; i < 10; i++) {
             const sparkle = ctx.createOscillator();
             sparkle.type = 'sine';
@@ -867,16 +812,12 @@ class AudioManager {
         }
     }
 
-    // Toggle sound on/off
-    toggle() {
+    toggle(): boolean {
         this.enabled = !this.enabled;
         return this.enabled;
     }
 
-    setVolume(vol) {
+    setVolume(vol: number): void {
         this.volume = Math.max(0, Math.min(1, vol));
     }
 }
-
-// Global audio manager instance
-const audioManager = new AudioManager();

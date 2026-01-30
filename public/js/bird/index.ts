@@ -1,189 +1,80 @@
-// Bird types and their characteristics - more realistic colors and details
-// Initial speeds are 3x lower, increases with worms eaten
-const BIRD_TYPES = {
-    sparrow: {
-        name: 'Sparrow',
-        baseMaxSpeed: 0.4,      // Was 1.2, now 3x lower
-        maxSpeed: 1.2,          // Max achievable speed
-        baseAcceleration: 0.027, // Was 0.08, now 3x lower
-        maxAcceleration: 0.08,
-        turnSpeed: 0.06,
-        size: 1.8,
-        liftPower: 0.15,
-        glideEfficiency: 0.4,
-        bodyColor: 0x8B6914,
-        headColor: 0x654321,
-        bellyColor: 0xD2B48C,
-        breastColor: 0xC4A574,
-        wingColor: 0x5C4033,
-        wingPatternColor: 0xF5DEB3,
-        wingCovertsColor: 0x6B4423,
-        tailColor: 0x3D2914,
-        beakColor: 0x2F2F2F,
-        eyeColor: 0x1a1a1a,
-        irisColor: 0x3D2914,
-        legColor: 0xCD853F,
-        mantleColor: 0x7B5B3A
-    },
-    pigeon: {
-        name: 'Pigeon',
-        baseMaxSpeed: 0.33,
-        maxSpeed: 1.0,
-        baseAcceleration: 0.02,
-        maxAcceleration: 0.06,
-        turnSpeed: 0.05,
-        size: 2.4,
-        liftPower: 0.12,
-        glideEfficiency: 0.5,
-        bodyColor: 0x696969,
-        headColor: 0x4A6741,
-        bellyColor: 0x808080,
-        breastColor: 0x9370DB,
-        wingColor: 0x505050,
-        wingPatternColor: 0x2F2F2F,
-        wingCovertsColor: 0x606060,
-        tailColor: 0x404040,
-        beakColor: 0x2F2F2F,
-        eyeColor: 0xFF4500,
-        irisColor: 0xFF6347,
-        legColor: 0xDC143C,
-        mantleColor: 0x556B2F,
-        neckIridescent: true
-    },
-    crow: {
-        name: 'Crow',
-        baseMaxSpeed: 0.3,
-        maxSpeed: 0.9,
-        baseAcceleration: 0.017,
-        maxAcceleration: 0.05,
-        turnSpeed: 0.04,
-        size: 3.0,
-        liftPower: 0.1,
-        glideEfficiency: 0.6,
-        bodyColor: 0x0a0a0a,
-        headColor: 0x151515,
-        bellyColor: 0x1a1a1a,
-        breastColor: 0x101010,
-        wingColor: 0x050505,
-        wingPatternColor: 0x202020,
-        wingCovertsColor: 0x181818,
-        tailColor: 0x0a0a0a,
-        beakColor: 0x1a1a1a,
-        eyeColor: 0x2F2F2F,
-        irisColor: 0x1a1a1a,
-        legColor: 0x1a1a1a,
-        mantleColor: 0x0f0f0f
-    },
-    hummingbird: {
-        name: 'Hummingbird',
-        baseMaxSpeed: 0.6,
-        maxSpeed: 1.8,
-        baseAcceleration: 0.05,
-        maxAcceleration: 0.15,
-        turnSpeed: 0.1,
-        size: 1.2,
-        liftPower: 0.25,
-        glideEfficiency: 0.2,
-        bodyColor: 0x228B22,
-        headColor: 0x006400,
-        bellyColor: 0xF0F0F0,
-        breastColor: 0xE8E8E8,
-        wingColor: 0x87CEEB,
-        wingPatternColor: 0x00CED1,
-        wingCovertsColor: 0x32CD32,
-        tailColor: 0x2E8B57,
-        beakColor: 0x1a1a1a,
-        eyeColor: 0x1a1a1a,
-        irisColor: 0x2F2F2F,
-        legColor: 0x2F4F4F,
-        mantleColor: 0x3CB371,
-        throatColor: 0xFF1493,
-        iridescent: true
-    },
-    penguin: {
-        name: 'Penguin',
-        baseMaxSpeed: 0.25,       // Slow walker
-        maxSpeed: 0.5,            // Can't go very fast
-        baseAcceleration: 0.015,
-        maxAcceleration: 0.03,
-        turnSpeed: 0.08,          // Turns well (waddles)
-        size: 2.8,                // Chonky boy
-        liftPower: 0.0,           // Cannot fly!
-        glideEfficiency: 0.0,     // No gliding
-        jumpPower: 0.12,          // Can hop instead
-        canFly: false,            // Special flag
-        bodyColor: 0x1a1a1a,      // Black back
-        headColor: 0x0a0a0a,      // Black head
-        bellyColor: 0xFFFFF0,     // White belly
-        breastColor: 0xFFFAFA,    // White breast
-        wingColor: 0x1a1a1a,      // Black flippers
-        wingPatternColor: 0x2a2a2a,
-        wingCovertsColor: 0x151515,
-        tailColor: 0x1a1a1a,
-        beakColor: 0xFF6B00,      // Orange beak
-        eyeColor: 0x1a1a1a,
-        irisColor: 0x3D2914,
-        legColor: 0xFF6B00,       // Orange feet
-        mantleColor: 0x0a0a0a,
-        cheekColor: 0xFFD700      // Yellow cheek patches (emperor penguin style)
-    }
-};
+// Bird module - main Bird class (facade pattern)
+import * as THREE from 'three';
+import { BIRD_TYPES, type BirdTypeConfig, type BirdTypeName, type BirdInput } from './types.ts';
+import { updatePhysics, createPhysicsState, type PhysicsState } from './physics.ts';
+import { updateAnimation, createAnimationState, type AnimationState, type BirdParts } from './animation.ts';
 
-// Physics constants
-const GRAVITY = 0.004;  // Reduced by 3x for floatier flight
-const AIR_RESISTANCE = 0.985;
-const ROTATION_DAMPING = 0.92;
+// Re-export types
+export { BIRD_TYPES, GRAVITY, AIR_RESISTANCE, ROTATION_DAMPING, type BirdTypeConfig, type BirdTypeName, type BirdInput } from './types.ts';
 
-class Bird {
-    constructor(scene, type = 'sparrow', isPlayer = true) {
+export class Bird {
+    // Scene reference
+    private scene: THREE.Scene;
+    public readonly type: string;
+    public readonly config: BirdTypeConfig;
+    public readonly isPlayer: boolean;
+
+    // Physics and animation state (using modules)
+    private physics: PhysicsState;
+    private anim: AnimationState;
+
+    // Speed progression
+    public wormCount: number;
+
+    // 3D objects
+    public group!: THREE.Group;
+    private body!: THREE.Mesh;
+    private breast!: THREE.Mesh;
+    private belly!: THREE.Mesh;
+    private head!: THREE.Mesh;
+    private upperBeak!: THREE.Mesh;
+    private lowerBeak!: THREE.Mesh;
+    private leftWingGroup!: THREE.Group;
+    private rightWingGroup!: THREE.Group;
+    private tailGroup!: THREE.Group;
+    private leftLegGroup!: THREE.Group;
+    private rightLegGroup!: THREE.Group;
+
+    constructor(scene: THREE.Scene, type: string = 'sparrow', isPlayer: boolean = true) {
         this.scene = scene;
         this.type = type;
-        this.config = BIRD_TYPES[type] || BIRD_TYPES.sparrow;
+        this.config = BIRD_TYPES[type as BirdTypeName] || BIRD_TYPES.sparrow;
         this.isPlayer = isPlayer;
 
-        // Physics state
-        this.velocity = new THREE.Vector3();
-        this.position = new THREE.Vector3(0, 10, 0);
-        this.rotation = 0;
-        this.rotationVelocity = 0;
+        // Initialize physics state using module
+        this.physics = createPhysicsState(this.config);
 
-        // Visual rotation (smoothed)
-        this.visualRotation = 0;
-        this.visualTiltX = 0;
-        this.visualTiltZ = 0;
-
-        // Flight state
-        this.isFlapping = false;
-        this.isGliding = false;
-        this.horizontalSpeed = 0;
-
-        // Penguin state
-        this.isOnGround = false;
-        this.isJumping = false;
-        this.isWaddling = false;
-        this.waddleAngle = 0;
+        // Initialize animation state using module
+        this.anim = createAnimationState(type);
 
         // Speed progression (based on worms eaten)
         this.wormCount = 0;
-        this.currentMaxSpeed = this.config.baseMaxSpeed;
-        this.currentAcceleration = this.config.baseAcceleration;
-
-        // Animation
-        this.wingAngle = 0;
-        this.baseWingSpeed = type === 'hummingbird' ? 1.5 : 0.25;
-        this.currentWingSpeed = this.baseWingSpeed;
-        this.tailAngle = 0;
-        this.breathAngle = 0;
-
-        // Head position (will be set by species-specific methods)
-        this.headBaseY = 0;
-        this.headBaseZ = 0;
 
         this.createModel();
     }
 
+    // Backward-compatible getters for physics state
+    get velocity(): THREE.Vector3 { return this.physics.velocity; }
+    get position(): THREE.Vector3 { return this.physics.position; }
+    get rotation(): number { return this.physics.rotation; }
+    set rotation(value: number) { this.physics.rotation = value; }
+    get rotationVelocity(): number { return this.physics.rotationVelocity; }
+    get horizontalSpeed(): number { return this.physics.horizontalSpeed; }
+    get isFlapping(): boolean { return this.physics.isFlapping; }
+    get isGliding(): boolean { return this.physics.isGliding; }
+    get isOnGround(): boolean { return this.physics.isOnGround; }
+    get isJumping(): boolean { return this.physics.isJumping; }
+    get currentMaxSpeed(): number { return this.physics.currentMaxSpeed; }
+    get currentAcceleration(): number { return this.physics.currentAcceleration; }
+
+    // Private getters for internal state used by model creation
+    private get headBaseY(): number { return this.anim.headBaseY; }
+    private set headBaseY(value: number) { this.anim.headBaseY = value; }
+    private get headBaseZ(): number { return this.anim.headBaseZ; }
+    private set headBaseZ(value: number) { this.anim.headBaseZ = value; }
+
     // Update speed based on worms eaten
-    setWormCount(count) {
+    setWormCount(count: number): void {
         this.wormCount = count;
         // Speed increases logarithmically with worms, caps at max
         // At 0 worms: base speed (1/3 of max)
@@ -191,11 +82,11 @@ class Bird {
         const progress = Math.min(1, Math.log(1 + count * 0.15) / Math.log(4));
 
         const cfg = this.config;
-        this.currentMaxSpeed = cfg.baseMaxSpeed + (cfg.maxSpeed - cfg.baseMaxSpeed) * progress;
-        this.currentAcceleration = cfg.baseAcceleration + (cfg.maxAcceleration - cfg.baseAcceleration) * progress;
+        this.physics.currentMaxSpeed = cfg.baseMaxSpeed + (cfg.maxSpeed - cfg.baseMaxSpeed) * progress;
+        this.physics.currentAcceleration = cfg.baseAcceleration + (cfg.maxAcceleration - cfg.baseAcceleration) * progress;
     }
 
-    createModel() {
+    private createModel(): void {
         this.group = new THREE.Group();
         const s = this.config.size;
         const cfg = this.config;
@@ -295,7 +186,7 @@ class Bird {
     // ============================================
     // PENGUIN BODY - Upright, egg-shaped
     // ============================================
-    createPenguinBody(s, cfg) {
+    createPenguinBody(s: number, cfg: BirdTypeConfig): void {
         // Main body - smooth egg/oval shape, upright like a bowling pin
         const bodyGeom = new THREE.SphereGeometry(s * 0.4, 32, 24);
         bodyGeom.scale(1, 1.4, 0.85); // Tall oval, slightly flat front-to-back
@@ -332,7 +223,7 @@ class Bird {
         this.group.add(this.breast);
     }
 
-    createPenguinFlippers(s, cfg) {
+    createPenguinFlippers(s: number, cfg: BirdTypeConfig): void {
         // Flippers - flat paddle shapes attached to sides of body
         this.leftWingGroup = new THREE.Group();
         this.rightWingGroup = new THREE.Group();
@@ -379,7 +270,7 @@ class Bird {
         this.group.add(this.rightWingGroup);
     }
 
-    createPenguinTail(s, cfg) {
+    createPenguinTail(s: number, cfg: BirdTypeConfig): void {
         // Penguin tail - small triangular tail
         this.tailGroup = new THREE.Group();
 
@@ -399,7 +290,7 @@ class Bird {
         this.group.add(this.tailGroup);
     }
 
-    createPenguinFeet(s, cfg) {
+    createPenguinFeet(s: number, cfg: BirdTypeConfig): void {
         // Big orange webbed feet
         this.leftLegGroup = new THREE.Group();
         this.rightLegGroup = new THREE.Group();
@@ -453,7 +344,7 @@ class Bird {
         this.group.add(this.rightLegGroup);
     }
 
-    createBodyFeathers(s, cfg) {
+    createBodyFeathers(s: number, cfg: BirdTypeConfig): void {
         // Subtle feather texture using small overlapping scales
         const featherRows = 6;
         const feathersPerRow = 12;
@@ -486,7 +377,7 @@ class Bird {
         }
     }
 
-    createSpeciesHead(s, cfg) {
+    createSpeciesHead(s: number, cfg: BirdTypeConfig): void {
         // Create species-specific head based on bird type
         switch (this.type) {
             case 'sparrow':
@@ -512,7 +403,7 @@ class Bird {
     // ============================================
     // SPARROW HEAD - Small, round, large eyes, short conical beak
     // ============================================
-    createSparrowHead(s, cfg) {
+    createSparrowHead(s: number, cfg: BirdTypeConfig): void {
         const headMat = new THREE.MeshPhongMaterial({ color: cfg.headColor, shininess: 45 });
 
         // Store head base position for animation
@@ -587,7 +478,7 @@ class Bird {
         this.createSparrowEyes(s, cfg);
     }
 
-    createSparrowNeck(s, cfg) {
+    createSparrowNeck(s: number, cfg: BirdTypeConfig): void {
         const neckGeom = new THREE.CylinderGeometry(s * 0.16, s * 0.2, s * 0.2, 16, 4);
         const neckMat = new THREE.MeshPhongMaterial({ color: cfg.breastColor, shininess: 30 });
         const neck = new THREE.Mesh(neckGeom, neckMat);
@@ -596,7 +487,7 @@ class Bird {
         this.group.add(neck);
     }
 
-    createSparrowBeak(s, cfg) {
+    createSparrowBeak(s: number, cfg: BirdTypeConfig): void {
         const beakMat = new THREE.MeshPhongMaterial({ color: cfg.beakColor, shininess: 70 });
 
         // Upper beak - short, conical, strong for seeds
@@ -617,7 +508,7 @@ class Bird {
         this.group.add(this.lowerBeak);
     }
 
-    createSparrowEyes(s, cfg) {
+    createSparrowEyes(s: number, cfg: BirdTypeConfig): void {
         // Eye socket
         const socketGeom = new THREE.SphereGeometry(s * 0.08, 16, 12);
         const socketMat = new THREE.MeshPhongMaterial({ color: 0x1a1a1a, shininess: 10 });
@@ -672,7 +563,7 @@ class Bird {
     // ============================================
     // PIGEON HEAD - Small relative to body, iridescent neck, cere
     // ============================================
-    createPigeonHead(s, cfg) {
+    createPigeonHead(s: number, cfg: BirdTypeConfig): void {
         const headMat = new THREE.MeshPhongMaterial({ color: cfg.headColor, shininess: 50 });
 
         // Store head base position for animation
@@ -722,7 +613,7 @@ class Bird {
         this.createPigeonEyes(s, cfg);
     }
 
-    createPigeonNeck(s, cfg) {
+    createPigeonNeck(s: number, cfg: BirdTypeConfig): void {
         // Neck base
         const neckGeom = new THREE.CylinderGeometry(s * 0.17, s * 0.22, s * 0.28, 16, 4);
         const neckMat = new THREE.MeshPhongMaterial({
@@ -763,7 +654,7 @@ class Bird {
         }
     }
 
-    createPigeonBeak(s, cfg) {
+    createPigeonBeak(s: number, cfg: BirdTypeConfig): void {
         const beakMat = new THREE.MeshPhongMaterial({ color: cfg.beakColor, shininess: 60 });
 
         // Cere - fleshy white/pink part at base of beak (distinctive for pigeons)
@@ -792,7 +683,7 @@ class Bird {
         this.group.add(this.lowerBeak);
     }
 
-    createPigeonEyes(s, cfg) {
+    createPigeonEyes(s: number, cfg: BirdTypeConfig): void {
         // Eye ring - bare skin around eye (pale)
         const ringGeom = new THREE.TorusGeometry(s * 0.07, s * 0.015, 12, 24);
         const ringMat = new THREE.MeshPhongMaterial({ color: 0xCCCCCC, shininess: 30 });
@@ -848,7 +739,7 @@ class Bird {
     // ============================================
     // CROW HEAD - Large, elongated, powerful beak, intelligent look
     // ============================================
-    createCrowHead(s, cfg) {
+    createCrowHead(s: number, cfg: BirdTypeConfig): void {
         const headMat = new THREE.MeshPhongMaterial({ color: cfg.headColor, shininess: 40 });
 
         // Store head base position for animation
@@ -900,7 +791,7 @@ class Bird {
         this.createCrowEyes(s, cfg);
     }
 
-    createCrowNasalBristles(s, cfg) {
+    createCrowNasalBristles(s: number, cfg: BirdTypeConfig): void {
         // Nasal bristles - forward-pointing feathers covering nostrils
         const bristleMat = new THREE.MeshPhongMaterial({ color: cfg.headColor, shininess: 30 });
 
@@ -919,7 +810,7 @@ class Bird {
         }
     }
 
-    createCrowNeck(s, cfg) {
+    createCrowNeck(s: number, cfg: BirdTypeConfig): void {
         const neckGeom = new THREE.CylinderGeometry(s * 0.18, s * 0.24, s * 0.26, 16, 4);
         const neckMat = new THREE.MeshPhongMaterial({ color: cfg.bodyColor, shininess: 35 });
         const neck = new THREE.Mesh(neckGeom, neckMat);
@@ -942,7 +833,7 @@ class Bird {
         }
     }
 
-    createCrowBeak(s, cfg) {
+    createCrowBeak(s: number, cfg: BirdTypeConfig): void {
         const beakMat = new THREE.MeshPhongMaterial({ color: cfg.beakColor, shininess: 50 });
 
         // Upper beak - large, powerful
@@ -963,7 +854,7 @@ class Bird {
         this.group.add(this.lowerBeak);
     }
 
-    createCrowEyes(s, cfg) {
+    createCrowEyes(s: number, cfg: BirdTypeConfig): void {
         // Eye socket - deep set
         const socketGeom = new THREE.SphereGeometry(s * 0.085, 16, 12);
         const socketMat = new THREE.MeshPhongMaterial({ color: 0x0a0a0a, shininess: 10 });
@@ -1018,7 +909,7 @@ class Bird {
     // ============================================
     // HUMMINGBIRD HEAD - Tiny, round, extremely long thin beak
     // ============================================
-    createHummingbirdHead(s, cfg) {
+    createHummingbirdHead(s: number, cfg: BirdTypeConfig): void {
         const headMat = new THREE.MeshPhongMaterial({ color: cfg.headColor, shininess: 60 });
 
         // Store head base position for animation
@@ -1060,7 +951,7 @@ class Bird {
         this.createHummingbirdEyes(s, cfg);
     }
 
-    createHummingbirdGorget(s, cfg) {
+    createHummingbirdGorget(s: number, cfg: BirdTypeConfig): void {
         if (!cfg.throatColor) return;
 
         // Gorget - iridescent throat patch
@@ -1102,7 +993,7 @@ class Bird {
         }
     }
 
-    createHummingbirdNeck(s, cfg) {
+    createHummingbirdNeck(s: number, cfg: BirdTypeConfig): void {
         const neckGeom = new THREE.CylinderGeometry(s * 0.14, s * 0.18, s * 0.15, 14, 3);
         const neckMat = new THREE.MeshPhongMaterial({ color: cfg.breastColor, shininess: 35 });
         const neck = new THREE.Mesh(neckGeom, neckMat);
@@ -1111,7 +1002,7 @@ class Bird {
         this.group.add(neck);
     }
 
-    createHummingbirdBeak(s, cfg) {
+    createHummingbirdBeak(s: number, cfg: BirdTypeConfig): void {
         const beakMat = new THREE.MeshPhongMaterial({ color: cfg.beakColor, shininess: 80 });
 
         // Upper beak - extremely long and thin (needle-like)
@@ -1132,7 +1023,7 @@ class Bird {
         this.group.add(this.lowerBeak);
     }
 
-    createHummingbirdEyes(s, cfg) {
+    createHummingbirdEyes(s: number, cfg: BirdTypeConfig): void {
         // Large eyes relative to head size
         const socketGeom = new THREE.SphereGeometry(s * 0.095, 16, 12);
         const socketMat = new THREE.MeshPhongMaterial({ color: 0x1a1a1a, shininess: 15 });
@@ -1195,7 +1086,7 @@ class Bird {
     // ============================================
     // PENGUIN HEAD - Round, with yellow cheek patches
     // ============================================
-    createPenguinHead(s, cfg) {
+    createPenguinHead(s: number, cfg: BirdTypeConfig): void {
         const headMat = new THREE.MeshPhongMaterial({ color: cfg.headColor, shininess: 50 });
 
         // Store head base position for animation - sits directly on body
@@ -1245,7 +1136,7 @@ class Bird {
         this.createPenguinEyes(s, cfg);
     }
 
-    createPenguinBeak(s, cfg) {
+    createPenguinBeak(s: number, cfg: BirdTypeConfig): void {
         const beakMat = new THREE.MeshPhongMaterial({ color: cfg.beakColor, shininess: 70 });
 
         // Upper beak - positioned in front of head (head is at z=0.08, radius ~0.28)
@@ -1274,7 +1165,7 @@ class Bird {
         this.group.add(tip);
     }
 
-    createPenguinEyes(s, cfg) {
+    createPenguinEyes(s: number, cfg: BirdTypeConfig): void {
         // Eyes on head surface - head at z=0.1, radius 0.26
         const eyeY = s * 0.68;
         const eyeZ = s * 0.32; // Front of head sphere
@@ -1320,7 +1211,7 @@ class Bird {
         });
     }
 
-    createWings(s, cfg) {
+    createWings(s: number, cfg: BirdTypeConfig): void {
         this.leftWingGroup = new THREE.Group();
         this.rightWingGroup = new THREE.Group();
 
@@ -1473,7 +1364,7 @@ class Bird {
         this.group.add(this.rightWingGroup);
     }
 
-    createTail(s, cfg) {
+    createTail(s: number, cfg: BirdTypeConfig): void {
         this.tailGroup = new THREE.Group();
 
         const tailMat = new THREE.MeshPhongMaterial({
@@ -1549,7 +1440,7 @@ class Bird {
         this.group.add(this.tailGroup);
     }
 
-    createLegs(s, cfg) {
+    createLegs(s: number, cfg: BirdTypeConfig): void {
         const legMat = new THREE.MeshPhongMaterial({
             color: cfg.legColor,
             shininess: 40
@@ -1707,7 +1598,7 @@ class Bird {
         this.group.add(this.rightLegGroup);
     }
 
-    createCrowCrest(s, cfg) {
+    createCrowCrest(s: number, cfg: BirdTypeConfig): void {
         // Crow's head feathers that stick up slightly
         for (let i = 0; i < 5; i++) {
             const crestGeom = new THREE.ConeGeometry(s * 0.03, s * 0.1, 6);
@@ -1727,333 +1618,53 @@ class Bird {
         }
     }
 
-    update(input, delta) {
+    // Create BirdParts object for animation module
+    private getBirdParts(): BirdParts {
+        return {
+            group: this.group,
+            body: this.body,
+            breast: this.breast || null,
+            head: this.head || null,
+            lowerBeak: this.lowerBeak || null,
+            leftWingGroup: this.leftWingGroup,
+            rightWingGroup: this.rightWingGroup,
+            tailGroup: this.tailGroup,
+            leftLegGroup: this.leftLegGroup,
+            rightLegGroup: this.rightLegGroup
+        };
+    }
+
+    update(input: BirdInput, _delta: number): void {
+        // Update physics if this is a player-controlled bird
         if (this.isPlayer) {
-            const cfg = this.config;
-
-            // Normalize input values (support both boolean and analog 0-1)
-            const leftInput = typeof input.left === 'number' ? input.left : (input.left ? 1 : 0);
-            const rightInput = typeof input.right === 'number' ? input.right : (input.right ? 1 : 0);
-            const forwardInput = typeof input.forward === 'number' ? input.forward : (input.forward ? 1 : 0);
-            const backwardInput = typeof input.backward === 'number' ? input.backward : (input.backward ? 1 : 0);
-            const upInput = typeof input.up === 'number' ? input.up : (input.up ? 1 : 0);
-            const downInput = typeof input.down === 'number' ? input.down : (input.down ? 1 : 0);
-
-            // === ROTATION ===
-            // Balance: higher speed = lower turn rate (30% turn rate at max speed)
-            const minTurnRatio = 0.3;
-            const speedRatio = Math.min(1, this.horizontalSpeed / this.currentMaxSpeed);
-            const turnMultiplier = 1 - (1 - minTurnRatio) * speedRatio;
-            const effectiveTurnSpeed = cfg.turnSpeed * turnMultiplier;
-
-            if (input.turnRate !== undefined && input.turnRate !== 0) {
-                // Touch input: direct turn rate control (joystick position = turn rate)
-                // When joystick released, turnRate = 0, so rotation stops immediately
-                const targetRotationVelocity = input.turnRate * effectiveTurnSpeed * 1.5;
-                // Smooth transition to target
-                this.rotationVelocity += (targetRotationVelocity - this.rotationVelocity) * 0.3;
-            } else if (input.isTouch) {
-                // Touch input but joystick centered - stop rotation smoothly
-                this.rotationVelocity *= 0.8;
-            } else {
-                // Keyboard input: accumulating rotation with inertia
-                if (leftInput > 0) {
-                    this.rotationVelocity += effectiveTurnSpeed * 0.15 * leftInput;
-                }
-                if (rightInput > 0) {
-                    this.rotationVelocity -= effectiveTurnSpeed * 0.15 * rightInput;
-                }
-                this.rotationVelocity *= ROTATION_DAMPING;
-            }
-
-            // Apply rotation
-            this.rotation += this.rotationVelocity;
-
-            // === FORWARD/BACKWARD THRUST (analog) ===
-            if (forwardInput > 0) {
-                const accel = this.currentAcceleration * forwardInput;
-                const forwardX = Math.sin(this.rotation) * accel;
-                const forwardZ = Math.cos(this.rotation) * accel;
-                this.velocity.x += forwardX;
-                this.velocity.z += forwardZ;
-            }
-            if (backwardInput > 0) {
-                // Fly backwards (slower than forward)
-                const backwardAccel = this.currentAcceleration * 0.5 * backwardInput;
-                const backwardX = -Math.sin(this.rotation) * backwardAccel;
-                const backwardZ = -Math.cos(this.rotation) * backwardAccel;
-                this.velocity.x += backwardX;
-                this.velocity.z += backwardZ;
-            }
-
-            // Calculate horizontal speed
-            this.horizontalSpeed = Math.sqrt(
-                this.velocity.x * this.velocity.x +
-                this.velocity.z * this.velocity.z
-            );
-
-            // Clamp to current max speed (based on worms eaten)
-            if (this.horizontalSpeed > this.currentMaxSpeed) {
-                const ratio = this.currentMaxSpeed / this.horizontalSpeed;
-                this.velocity.x *= ratio;
-                this.velocity.z *= ratio;
-                this.horizontalSpeed = this.currentMaxSpeed;
-            }
-
-            // === VERTICAL MOVEMENT (LIFT & GRAVITY) (analog) ===
-            this.velocity.y -= GRAVITY;
-
-            // Penguin special: can't fly, but can jump when on ground
-            if (cfg.canFly === false) {
-                this.isFlapping = upInput > 0;
-                this.isOnGround = this.position.y <= 2.1;
-
-                // Jump when on ground
-                if (upInput > 0 && this.isOnGround && !this.isJumping) {
-                    this.velocity.y = cfg.jumpPower || 0.1;
-                    this.isJumping = true;
-                }
-
-                // Reset jump state when landed
-                if (this.isOnGround && this.velocity.y <= 0) {
-                    this.isJumping = false;
-                }
-
-                // Stronger gravity for penguin (falls faster)
-                this.velocity.y -= GRAVITY * 1.5;
-
-                // Penguin waddle state
-                this.isWaddling = this.isOnGround && this.horizontalSpeed > 0.05;
-            } else {
-                // Normal flying birds
-                this.isFlapping = upInput > 0;
-                if (upInput > 0) {
-                    this.velocity.y += cfg.liftPower * upInput;
-                }
-
-                if (downInput > 0) {
-                    this.velocity.y -= cfg.liftPower * 0.5 * downInput;
-                }
-
-                // Gliding
-                this.isGliding = upInput === 0 && downInput === 0 && this.horizontalSpeed > 0.2;
-                if (this.isGliding) {
-                    const glideLift = this.horizontalSpeed * cfg.glideEfficiency * 0.02;
-                    this.velocity.y += glideLift;
-                }
-            }
-
-            // Clamp vertical velocity
-            this.velocity.y = Math.max(-this.currentMaxSpeed, Math.min(this.currentMaxSpeed * 0.8, this.velocity.y));
-
-            // === AIR RESISTANCE ===
-            this.velocity.x *= AIR_RESISTANCE;
-            this.velocity.z *= AIR_RESISTANCE;
-
-            // === APPLY VELOCITY ===
-            this.position.add(this.velocity);
-
-            // === BOUNDS ===
-            if (this.position.y < 2) {
-                this.position.y = 2;
-                this.velocity.y = Math.max(0, this.velocity.y);
-                this.velocity.x *= 0.9;
-                this.velocity.z *= 0.9;
-            }
-            if (this.position.y > 100) {
-                this.position.y = 100;
-                this.velocity.y = Math.min(0, this.velocity.y);
-            }
-            const bound = 150;
-            this.position.x = Math.max(-bound, Math.min(bound, this.position.x));
-            this.position.z = Math.max(-bound, Math.min(bound, this.position.z));
+            updatePhysics(input, this.physics, this.config);
         }
 
-        // === SMOOTH VISUAL UPDATES ===
-        this.visualRotation += (this.rotation - this.visualRotation) * 0.15;
-
-        // Penguin special: waddle animation instead of flight tilts
-        if (this.config.canFly === false) {
-            // Waddle side-to-side when walking
-            if (this.isWaddling) {
-                this.waddleAngle = (this.waddleAngle || 0) + 0.3;
-                const waddleTilt = Math.sin(this.waddleAngle) * 0.15;
-                this.visualTiltZ = waddleTilt;
-                // Slight forward lean when walking
-                this.visualTiltX = 0.1;
-            } else if (this.isJumping) {
-                // Lean forward when jumping
-                this.visualTiltX += (0.3 - this.visualTiltX) * 0.1;
-                this.visualTiltZ *= 0.9;
-            } else {
-                // Upright when standing
-                this.visualTiltX += (0 - this.visualTiltX) * 0.1;
-                this.visualTiltZ += (0 - this.visualTiltZ) * 0.1;
-            }
-        } else {
-            // Normal bird tilts
-            const targetTiltX = Math.max(-0.5, Math.min(0.5, this.velocity.y * 0.4));
-            const targetTiltZ = Math.max(-0.6, Math.min(0.6, -this.rotationVelocity * 8));
-
-            this.visualTiltX += (targetTiltX - this.visualTiltX) * 0.1;
-            this.visualTiltZ += (targetTiltZ - this.visualTiltZ) * 0.1;
-        }
-
-        this.group.position.copy(this.position);
-        this.group.rotation.y = this.visualRotation;
-        this.group.rotation.x = this.visualTiltX;
-        this.group.rotation.z = this.visualTiltZ;
-
-        // === ADAPTIVE WING ANIMATION ===
-        // Penguin flipper animation
-        if (this.config.canFly === false) {
-            this.wingAngle += 0.1;
-
-            if (this.isFlapping) {
-                // Excited flapping when trying to "fly" (pressing space)
-                const flipperFlap = Math.sin(this.wingAngle * 3) * 0.6;
-                this.leftWingGroup.rotation.z = -0.3 - flipperFlap;
-                this.rightWingGroup.rotation.z = 0.3 + flipperFlap;
-            } else if (this.isWaddling) {
-                // Swing flippers opposite to waddle
-                const flipperSwing = Math.sin(this.waddleAngle) * 0.3;
-                this.leftWingGroup.rotation.z = -0.3 - flipperSwing;
-                this.rightWingGroup.rotation.z = 0.3 + flipperSwing;
-                // Slight forward/back motion
-                this.leftWingGroup.rotation.y = Math.sin(this.waddleAngle) * 0.2;
-                this.rightWingGroup.rotation.y = -Math.sin(this.waddleAngle) * 0.2;
-            } else {
-                // Rest position - flippers at sides
-                this.leftWingGroup.rotation.z += (-0.3 - this.leftWingGroup.rotation.z) * 0.1;
-                this.rightWingGroup.rotation.z += (0.3 - this.rightWingGroup.rotation.z) * 0.1;
-            }
-        } else {
-            // Normal bird wing animation
-            if (this.isFlapping) {
-                this.currentWingSpeed += (this.baseWingSpeed * 2 - this.currentWingSpeed) * 0.1;
-            } else if (this.isGliding && this.horizontalSpeed > 0.3) {
-                this.currentWingSpeed += (this.baseWingSpeed * 0.15 - this.currentWingSpeed) * 0.05;
-            } else if (this.velocity.y < -0.1) {
-                this.currentWingSpeed += (this.baseWingSpeed * 0.8 - this.currentWingSpeed) * 0.1;
-            } else {
-                this.currentWingSpeed += (this.baseWingSpeed - this.currentWingSpeed) * 0.1;
-            }
-
-            this.wingAngle += this.currentWingSpeed;
-
-            let wingAmplitude = 0.6;
-            if (this.isGliding && this.horizontalSpeed > 0.3) {
-                wingAmplitude = 0.15;
-            } else if (this.isFlapping) {
-                wingAmplitude = 0.8;
-            }
-
-            const wingFlap = Math.sin(this.wingAngle) * wingAmplitude;
-
-            const baseWingAngle = this.isGliding ? -0.1 : -0.3;
-            this.leftWingGroup.rotation.z = baseWingAngle - wingFlap;
-            this.rightWingGroup.rotation.z = -baseWingAngle + wingFlap;
-
-            const wingForward = Math.sin(this.wingAngle * 0.5) * 0.1;
-            this.leftWingGroup.rotation.y = wingForward;
-            this.rightWingGroup.rotation.y = -wingForward;
-        }
-
-        // === TAIL ANIMATION ===
-        this.tailAngle += 0.05;
-        const tailWag = Math.sin(this.tailAngle) * 0.1;
-        this.tailGroup.rotation.y = tailWag + this.rotationVelocity * 2;
-
-        if (this.config.canFly === false) {
-            // Penguin tail - small wobble when waddling
-            if (this.isWaddling) {
-                this.tailGroup.rotation.y = Math.sin(this.waddleAngle) * 0.2;
-            }
-            this.tailGroup.rotation.x = 0.5; // Fixed upward angle
-        } else {
-            const tailPitch = 0.2 + (this.velocity.y > 0 ? 0.3 : -0.15);
-            this.tailGroup.rotation.x += (tailPitch - this.tailGroup.rotation.x) * 0.1;
-
-            // Tail spread when turning or braking
-            const tailSpread = Math.abs(this.rotationVelocity) * 3 + (this.velocity.y < -0.1 ? 0.2 : 0);
-            this.tailGroup.scale.x = 1 + tailSpread;
-        }
-
-        // === LEG ANIMATION ===
-        if (this.config.canFly === false) {
-            // Penguin waddle walk
-            if (this.isWaddling) {
-                const walkCycle = Math.sin(this.waddleAngle);
-                // Alternating leg lift
-                this.leftLegGroup.rotation.x = walkCycle * 0.3;
-                this.rightLegGroup.rotation.x = -walkCycle * 0.3;
-                // Side sway
-                this.leftLegGroup.position.y = walkCycle > 0 ? 0.05 : 0;
-                this.rightLegGroup.position.y = walkCycle < 0 ? 0.05 : 0;
-            } else if (this.isJumping) {
-                // Legs tucked when jumping
-                this.leftLegGroup.rotation.x = 0.5;
-                this.rightLegGroup.rotation.x = 0.5;
-            } else {
-                // Standing
-                this.leftLegGroup.rotation.x = 0;
-                this.rightLegGroup.rotation.x = 0;
-                this.leftLegGroup.position.y = 0;
-                this.rightLegGroup.position.y = 0;
-            }
-        } else {
-            // Normal bird leg animation
-            const legTuck = 0.8 + (this.horizontalSpeed * 0.3);
-            this.leftLegGroup.rotation.x = legTuck + Math.sin(this.wingAngle) * 0.1;
-            this.rightLegGroup.rotation.x = legTuck + Math.sin(this.wingAngle + Math.PI) * 0.1;
-
-            // Legs tucked back more at high speed
-            const legBack = this.horizontalSpeed * 0.15;
-            this.leftLegGroup.rotation.z = legBack;
-            this.rightLegGroup.rotation.z = -legBack;
-        }
-
-        // === HEAD BOB ===
-        if (this.head) {
-            this.breathAngle += 0.03;
-            const breathScale = 1 + Math.sin(this.breathAngle) * 0.02;
-            this.body.scale.y = 0.85 * breathScale;
-            if (this.breast) {
-                this.breast.scale.y = 0.75 * breathScale;
-            }
-
-            // Gentle head rotation - reduced to avoid jerking
-            this.head.rotation.x = Math.sin(this.wingAngle * 2) * 0.015;
-            this.head.rotation.y = this.rotationVelocity * 1.5;
-
-            // Subtle head bob using stored base position
-            this.head.position.y = this.headBaseY + Math.sin(this.wingAngle * 2) * this.config.size * 0.005;
-        }
-
-        // === BEAK ANIMATION ===
-        if (this.lowerBeak) {
-            // Slight beak movement synced with breathing
-            this.lowerBeak.rotation.x = Math.sin(this.breathAngle * 2) * 0.02;
-        }
+        // Update animations (for both player and other birds)
+        updateAnimation(this.physics, this.anim, this.getBirdParts(), this.config);
     }
 
-    setPosition(x, y, z) {
-        this.position.set(x, y, z);
-        this.group.position.copy(this.position);
+    setPosition(x: number, y: number, z: number): void {
+        this.physics.position.set(x, y, z);
+        this.group.position.copy(this.physics.position);
     }
 
-    setRotation(rotY) {
-        this.rotation = rotY;
-        this.visualRotation = rotY;
+    setRotation(rotY: number): void {
+        this.physics.rotation = rotY;
+        this.anim.visualRotation = rotY;
         this.group.rotation.y = rotY;
     }
 
-    getCollisionRadius() {
+    getCollisionRadius(): number {
         // Use body-only radius (excludes wings from hitbox)
         return this.config.size * 0.4;
     }
 
-    remove() {
+    getVisualRotation(): number {
+        return this.anim.visualRotation;
+    }
+
+    remove(): void {
         this.scene.remove(this.group);
     }
 }
