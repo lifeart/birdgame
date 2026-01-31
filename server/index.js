@@ -225,7 +225,7 @@ function handleWormCollected(ws, message) {
 
         broadcaster.broadcast({
             type: 'worm_collected',
-            wormId: result.worm.id,
+            wormId: String(result.worm.id),
             playerId: collector.id,
             playerName: collector.name,
             newScore: collector.score,
@@ -249,7 +249,7 @@ function handleFlyCollected(ws, message) {
 
         broadcaster.broadcast({
             type: 'fly_collected',
-            flyId: result.fly.id,
+            flyId: String(result.fly.id),
             playerId: collector.id,
             playerName: collector.name,
             newScore: collector.score

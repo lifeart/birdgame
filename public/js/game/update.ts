@@ -75,6 +75,10 @@ export function update(ctx: UpdateContext, delta: number): void {
 
     ctx.playerBird.update(mergedInput, delta);
 
+    // Clear mouse delta after consuming input (so it doesn't accumulate)
+    ctx.input.mouseDeltaX = 0;
+    ctx.input.mouseDeltaY = 0;
+
     if (mergedInput.up > 0) {
         ctx.audioManager?.playFlap();
     }
@@ -139,7 +143,8 @@ export function update(ctx: UpdateContext, delta: number): void {
             ctx.cameraMode,
             ctx.playerBird.position,
             ctx.playerBird.rotation,
-            ctx.playerBird.getVisualRotation()
+            ctx.playerBird.getVisualRotation(),
+            ctx.input.pointerLocked
         );
     }
 

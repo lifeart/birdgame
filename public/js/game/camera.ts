@@ -76,26 +76,35 @@ export function updateCamera(
     cameraMode: CameraMode,
     birdPos: THREE.Vector3,
     birdRotation: number,
-    birdVisualRotation?: number
+    birdVisualRotation?: number,
+    pointerLocked?: boolean
 ): void {
     const actualBirdRotation = birdVisualRotation ?? birdRotation;
 
-    // In follow mode, camera stays behind bird with limited rotation
-    if (cameraMode === CAMERA_MODES.FOLLOW) {
+    // In follow mode or with pointer lock, camera stays behind bird
+    if (cameraMode === CAMERA_MODES.FOLLOW || pointerLocked) {
+        // Camera directly follows bird rotation (3rd person view)
         const behindBirdAngle = -actualBirdRotation;
 
-        let angleDiff = behindBirdAngle - orbit.targetAngle;
-        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+        if (pointerLocked) {
+            // Instant follow when pointer is locked (responsive 3rd person)
+            orbit.targetAngle = behindBirdAngle;
+            orbit.angle = behindBirdAngle;
+        } else {
+            // Smooth follow when not locked
+            let angleDiff = behindBirdAngle - orbit.targetAngle;
+            while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+            while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
 
-        angleDiff = Math.max(-orbit.maxFollowAngleOffset, Math.min(orbit.maxFollowAngleOffset, angleDiff));
-        const rotationStep = Math.max(-orbit.maxRotationRate, Math.min(orbit.maxRotationRate, angleDiff * 0.05));
-
-        orbit.targetAngle += rotationStep;
+            // Faster follow rate for responsive feel
+            const followRate = 0.15;
+            orbit.targetAngle += angleDiff * followRate;
+        }
     }
 
     // Smooth interpolation
-    orbit.angle += (orbit.targetAngle - orbit.angle) * 0.12;
+    const smoothFactor = pointerLocked ? 0.25 : 0.12;
+    orbit.angle += (orbit.targetAngle - orbit.angle) * smoothFactor;
     orbit.pitch += (orbit.targetPitch - orbit.pitch) * 0.08;
     orbit.distance += (orbit.targetDistance - orbit.distance) * 0.08;
 
@@ -107,20 +116,17 @@ export function updateCamera(
     const targetY = birdPos.y + verticalOffset + 2;
     const targetZ = birdPos.z + Math.cos(orbit.angle) * horizontalDist;
 
-    // Smooth camera movement
-    camera.position.x += (targetX - camera.position.x) * 0.1;
-    camera.position.y += (targetY - camera.position.y) * 0.1;
-    camera.position.z += (targetZ - camera.position.z) * 0.1;
+    // Smooth camera movement (faster when pointer locked)
+    const moveFactor = pointerLocked ? 0.2 : 0.1;
+    camera.position.x += (targetX - camera.position.x) * moveFactor;
+    camera.position.y += (targetY - camera.position.y) * moveFactor;
+    camera.position.z += (targetZ - camera.position.z) * moveFactor;
 
-    // Look at bird (slightly ahead in follow mode)
-    let lookAtX = birdPos.x;
+    // Look at bird (slightly ahead for better view)
+    const lookAheadDist = pointerLocked ? 5 : 3;
+    const lookAtX = birdPos.x + Math.sin(actualBirdRotation) * lookAheadDist;
     const lookAtY = birdPos.y;
-    let lookAtZ = birdPos.z;
-
-    if (cameraMode === CAMERA_MODES.FOLLOW) {
-        lookAtX += Math.sin(actualBirdRotation) * 3;
-        lookAtZ += Math.cos(actualBirdRotation) * 3;
-    }
+    const lookAtZ = birdPos.z + Math.cos(actualBirdRotation) * lookAheadDist;
 
     camera.lookAt(lookAtX, lookAtY, lookAtZ);
 }

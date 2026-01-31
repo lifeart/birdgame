@@ -171,6 +171,8 @@ export function resetInputState(input: InputState): void {
     input.down = false;
     input.cameraLeft = false;
     input.cameraRight = false;
+    input.mouseDeltaX = 0;
+    input.mouseDeltaY = 0;
 }
 
 export function getMergedInput(
@@ -178,6 +180,10 @@ export function getMergedInput(
     touchControls: TouchControls | null
 ): MergedInput {
     const touchInput = touchControls ? touchControls.getInput() : null;
+
+    // Mouse look takes priority when pointer is locked
+    const useMouseLook = input.pointerLocked && (input.mouseDeltaX !== 0 || input.mouseDeltaY !== 0);
+
     return {
         forward: input.forward ? 1 : (touchInput ? touchInput.forward : 0),
         backward: input.backward ? 1 : (touchInput ? touchInput.backward : 0),
@@ -185,7 +191,10 @@ export function getMergedInput(
         right: input.right ? 1 : (touchInput ? touchInput.right : 0),
         up: input.up ? 1 : (touchInput ? touchInput.up : 0),
         down: input.down ? 1 : (touchInput ? touchInput.down : 0),
-        turnRate: touchInput ? touchInput.turnRate : 0,
+        // Mouse look overrides touch turn rate
+        turnRate: useMouseLook ? 0 : (touchInput ? touchInput.turnRate : 0),
+        mouseDeltaX: input.mouseDeltaX,
+        mouseDeltaY: input.mouseDeltaY,
         isTouch: touchInput ? touchInput.isTouch : false
     };
 }
@@ -195,6 +204,41 @@ export interface MouseHandlerState {
     dragButton: number | null;
     lastMouseX: number;
     lastMouseY: number;
+}
+
+// Pointer lock handlers for Half-Life style mouse look
+export function createPointerLockHandlers(
+    canvas: HTMLCanvasElement,
+    input: InputState,
+    ui: UIManager
+): {
+    click: (e: MouseEvent) => void;
+    pointerlockchange: () => void;
+    mousemove: (e: MouseEvent) => void;
+} {
+    const click = (e: MouseEvent) => {
+        // Only request pointer lock if clicking on canvas and not on UI
+        if (e.target === canvas && !input.pointerLocked) {
+            canvas.requestPointerLock();
+        }
+    };
+
+    const pointerlockchange = () => {
+        input.pointerLocked = document.pointerLockElement === canvas;
+        if (input.pointerLocked) {
+            ui.showCameraMode('Mouse Look (ESC to exit)');
+        }
+    };
+
+    const mousemove = (e: MouseEvent) => {
+        if (input.pointerLocked) {
+            // Accumulate mouse movement for this frame
+            input.mouseDeltaX += e.movementX;
+            input.mouseDeltaY += e.movementY;
+        }
+    };
+
+    return { click, pointerlockchange, mousemove };
 }
 
 export function createMouseHandlers(
@@ -285,8 +329,8 @@ export function createMouseHandlers(
         }
 
         // Handle horizontal scroll (two-finger swipe on touchpad) for camera rotation
-        if (Math.abs(e.deltaX) > Math.abs(e.deltaY) * 0.5 && Math.abs(e.deltaX) > 1) {
-            const rotationSpeed = 0.003;
+        if (Math.abs(e.deltaX) > 0.5) {
+            const rotationSpeed = 0.004;
             cameraOrbit.targetAngle -= e.deltaX * rotationSpeed;
 
             if (cameraMode.current === CAMERA_MODES.FOLLOW) {

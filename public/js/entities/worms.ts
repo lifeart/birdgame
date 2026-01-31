@@ -312,6 +312,7 @@ export class WormManager {
 
     checkCollection(birdPosition: THREE.Vector3, birdRadius: number): CollectedWorm[] {
         const collected: CollectedWorm[] = [];
+        const collectionRadius = birdRadius + 2.5;
 
         this.worms.forEach((worm, id) => {
             const dx = birdPosition.x - worm.x;
@@ -320,7 +321,7 @@ export class WormManager {
             const dz = birdPosition.z - worm.z;
             const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
-            if (dist < birdRadius + 1.5) {
+            if (dist < collectionRadius) {
                 collected.push({ id, isGolden: false, points: 1 });
             }
         });
@@ -344,7 +345,7 @@ export class WormManager {
         const id = 'golden_' + Date.now();
         const x = bounds.minX + Math.random() * (bounds.maxX - bounds.minX);
         const z = bounds.minZ + Math.random() * (bounds.maxZ - bounds.minZ);
-        const y = 0.5;
+        const y = 1.5;
 
         this.addWorm({ id, x, y, z, isGolden: true });
         this.lastGoldenWormSpawn = Date.now();

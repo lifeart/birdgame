@@ -55,8 +55,9 @@ function updateVisualTransforms(
     physics: PhysicsState,
     config: BirdTypeConfig
 ): void {
-    // Smooth visual rotation
-    anim.visualRotation += (physics.rotation - anim.visualRotation) * 0.15;
+    // Smooth visual rotation - use higher interpolation for responsive turning
+    // 0.5 makes the bird visually follow the physics rotation quickly
+    anim.visualRotation += (physics.rotation - anim.visualRotation) * 0.5;
 
     // Penguin special: waddle animation instead of flight tilts
     if (config.canFly === false) {

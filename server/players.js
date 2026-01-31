@@ -92,10 +92,10 @@ function createPlayerManager(players, playersByLocation, playerProfiles) {
     }
 
     /**
-     * Get next player ID
+     * Get next player ID (as string for client compatibility)
      */
     function getNextPlayerId() {
-        return playerIdCounter++;
+        return String(playerIdCounter++);
     }
 
     /**

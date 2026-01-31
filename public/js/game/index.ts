@@ -25,6 +25,7 @@ import {
     createKeyupHandler,
     resetInputState,
     createMouseHandlers,
+    createPointerLockHandlers,
     type MouseHandlerState,
     type InputHandlerCallbacks,
     type InputHandlerDeps
@@ -83,7 +84,10 @@ export class Game {
         up: false,
         down: false,
         cameraLeft: false,
-        cameraRight: false
+        cameraRight: false,
+        mouseDeltaX: 0,
+        mouseDeltaY: 0,
+        pointerLocked: false
     };
 
     // Public for GameInterface (TouchControls)
@@ -277,6 +281,7 @@ export class Game {
             cameraModeRef.current = mode;
         };
 
+        // Standard mouse handlers for camera orbit
         const handlers = createMouseHandlers(
             canvas,
             this.cameraOrbit,
@@ -286,13 +291,24 @@ export class Game {
             setCameraMode
         );
 
+        // Half-Life style pointer lock handlers
+        const pointerLockHandlers = createPointerLockHandlers(canvas, this.input, this.ui);
+
         this.boundHandlers.mousedown = handlers.mousedown;
         this.boundHandlers.mouseup = handlers.mouseup;
-        this.boundHandlers.mousemove = handlers.mousemove;
+        // Combine pointer lock mousemove with camera orbit mousemove
+        this.boundHandlers.mousemove = (e: MouseEvent) => {
+            pointerLockHandlers.mousemove(e);
+            if (!this.input.pointerLocked) {
+                handlers.mousemove(e);
+            }
+        };
         this.boundHandlers.wheel = handlers.wheel;
         this.boundHandlers.contextmenu = handlers.contextmenu;
 
         canvas.addEventListener('mousedown', this.boundHandlers.mousedown);
+        canvas.addEventListener('click', pointerLockHandlers.click);
+        document.addEventListener('pointerlockchange', pointerLockHandlers.pointerlockchange);
         window.addEventListener('mouseup', this.boundHandlers.mouseup);
         window.addEventListener('mousemove', this.boundHandlers.mousemove);
         canvas.addEventListener('wheel', this.boundHandlers.wheel, { passive: false });
@@ -546,7 +562,23 @@ export class Game {
     }
 
     private animateLoop(): void {
-        const ctx = this.createUpdateContext();
+        const baseCtx = this.createUpdateContext();
+        // Use proxy to ensure dynamic primitive properties are always read from this
+        // Objects are passed by reference and don't need proxying
+        const ctx = new Proxy(baseCtx, {
+            get: (target, prop) => {
+                switch (prop) {
+                    case 'paused': return this.paused;
+                    case 'isRunning': return this.isRunning;
+                    case 'goldenWormAlertShown': return this.goldenWormAlertShown;
+                    case 'cameraMode': return this.cameraMode;
+                    case 'lastPositionUpdate': return this.lastPositionUpdate;
+                    case 'collisionStartTime': return this.collisionStartTime;
+                    case 'playerBird': return this.playerBird;
+                    default: return target[prop as keyof UpdateContext];
+                }
+            }
+        });
         animate(ctx);
     }
 

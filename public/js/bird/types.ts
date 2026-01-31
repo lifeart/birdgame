@@ -169,16 +169,18 @@ export const BIRD_TYPES: Record<BirdTypeName, BirdTypeConfig> = {
 // Physics constants
 export const GRAVITY = 0.004;
 export const AIR_RESISTANCE = 0.985;
-export const ROTATION_DAMPING = 0.92;
+export const ROTATION_DAMPING = 0.85;
 
 // Input interface for bird update
 export interface BirdInput {
-    left?: boolean | number;
-    right?: boolean | number;
+    left?: boolean | number;     // Strafe left
+    right?: boolean | number;    // Strafe right
     forward?: boolean | number;
     backward?: boolean | number;
     up?: boolean | number;
     down?: boolean | number;
     turnRate?: number;
+    mouseDeltaX?: number;  // Mouse look X (rotation)
+    mouseDeltaY?: number;  // Mouse look Y (pitch - unused for now)
     isTouch?: boolean;
 }

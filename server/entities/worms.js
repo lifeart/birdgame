@@ -29,9 +29,9 @@ function createWormManager(broadcastFn) {
             const locationWorms = [];
             for (let i = 0; i < WORMS_PER_LOCATION; i++) {
                 locationWorms.push({
-                    id: wormIdCounter++,
+                    id: String(wormIdCounter++),
                     x: (Math.random() - 0.5) * WORLD_SIZE,
-                    y: 0.5,
+                    y: 1.5,
                     z: (Math.random() - 0.5) * WORLD_SIZE,
                     collected: false
                 });
@@ -85,7 +85,7 @@ function createWormManager(broadcastFn) {
         const goldenWorm = {
             id: 'golden_' + wormIdCounter++,
             x: (Math.random() - 0.5) * (WORLD_SIZE - 20),
-            y: 0.5,
+            y: 1.5,
             z: (Math.random() - 0.5) * (WORLD_SIZE - 20),
             isGolden: true,
             spawnTime: Date.now(),
@@ -129,9 +129,9 @@ function createWormManager(broadcastFn) {
                 const activeWorms = locationWorms.filter(w => !w.collected);
                 if (activeWorms.length < MIN_WORMS_BEFORE_RESPAWN) {
                     const newWorm = {
-                        id: wormIdCounter++,
+                        id: String(wormIdCounter++),
                         x: (Math.random() - 0.5) * WORLD_SIZE,
-                        y: 0.5,
+                        y: 1.5,
                         z: (Math.random() - 0.5) * WORLD_SIZE,
                         collected: false
                     };

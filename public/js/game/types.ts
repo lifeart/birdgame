@@ -37,6 +37,10 @@ export interface InputState {
     down: boolean;
     cameraLeft: boolean;
     cameraRight: boolean;
+    // Mouse look (Half-Life style)
+    mouseDeltaX: number;
+    mouseDeltaY: number;
+    pointerLocked: boolean;
 }
 
 // Camera orbit configuration
@@ -59,11 +63,13 @@ export interface CameraOrbitState {
 export interface MergedInput {
     forward: number;
     backward: number;
-    left: number;
-    right: number;
+    left: number;  // Strafe left
+    right: number; // Strafe right
     up: number;
     down: number;
     turnRate: number;
+    mouseDeltaX: number; // Mouse look X
+    mouseDeltaY: number; // Mouse look Y
     isTouch: boolean;
 }
 

@@ -30,7 +30,7 @@ function createFlyManager(broadcastFn) {
 
             for (let i = 0; i < flyCount; i++) {
                 locationFlies.push({
-                    id: flyIdCounter++,
+                    id: String(flyIdCounter++),
                     x: (Math.random() - 0.5) * (WORLD_SIZE - 20),
                     y: FLY_HEIGHT_MIN + Math.random() * (FLY_HEIGHT_MAX - FLY_HEIGHT_MIN),
                     z: (Math.random() - 0.5) * (WORLD_SIZE - 20),
@@ -74,7 +74,7 @@ function createFlyManager(broadcastFn) {
 
                 if (activeFlies.length < MIN_FLIES_BEFORE_RESPAWN) {
                     const newFly = {
-                        id: flyIdCounter++,
+                        id: String(flyIdCounter++),
                         x: (Math.random() - 0.5) * (WORLD_SIZE - 20),
                         y: FLY_HEIGHT_MIN + Math.random() * (FLY_HEIGHT_MAX - FLY_HEIGHT_MIN),
                         z: (Math.random() - 0.5) * (WORLD_SIZE - 20),

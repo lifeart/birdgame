@@ -20,13 +20,15 @@ export interface PhysicsState {
 
 // Normalized input for physics calculations
 interface NormalizedInput {
-    left: number;
-    right: number;
+    left: number;      // Strafe left
+    right: number;     // Strafe right
     forward: number;
     backward: number;
     up: number;
     down: number;
     turnRate: number | undefined;
+    mouseDeltaX: number;  // Mouse look rotation
+    mouseDeltaY: number;  // Mouse look pitch
     isTouch: boolean;
 }
 
@@ -40,6 +42,8 @@ function normalizeInput(input: BirdInput): NormalizedInput {
         up: typeof input.up === 'number' ? input.up : (input.up ? 1 : 0),
         down: typeof input.down === 'number' ? input.down : (input.down ? 1 : 0),
         turnRate: input.turnRate,
+        mouseDeltaX: input.mouseDeltaX || 0,
+        mouseDeltaY: input.mouseDeltaY || 0,
         isTouch: input.isTouch || false
     };
 }
@@ -50,34 +54,46 @@ function updateRotation(
     input: NormalizedInput,
     config: BirdTypeConfig
 ): void {
-    // Balance: higher speed = lower turn rate (30% turn rate at max speed)
-    const minTurnRatio = 0.3;
+    // Mouse look sensitivity
+    const mouseSensitivity = 0.003;
+
+    // Balance: higher speed = lower turn rate (50% turn rate at max speed)
+    // Less aggressive than before for better high-speed control
+    const minTurnRatio = 0.5;
     const speedRatio = Math.min(1, state.horizontalSpeed / state.currentMaxSpeed);
     const turnMultiplier = 1 - (1 - minTurnRatio) * speedRatio;
     const effectiveTurnSpeed = config.turnSpeed * turnMultiplier;
 
-    if (input.turnRate !== undefined && input.turnRate !== 0) {
-        // Touch input: direct turn rate control (joystick position = turn rate)
-        // When joystick released, turnRate = 0, so rotation stops immediately
-        const targetRotationVelocity = input.turnRate * effectiveTurnSpeed * 1.5;
-        // Smooth transition to target
-        state.rotationVelocity += (targetRotationVelocity - state.rotationVelocity) * 0.3;
-    } else if (input.isTouch) {
-        // Touch input but joystick centered - stop rotation smoothly
-        state.rotationVelocity *= 0.8;
-    } else {
-        // Keyboard input: accumulating rotation with inertia
-        if (input.left > 0) {
-            state.rotationVelocity += effectiveTurnSpeed * 0.15 * input.left;
-        }
-        if (input.right > 0) {
-            state.rotationVelocity -= effectiveTurnSpeed * 0.15 * input.right;
-        }
-        state.rotationVelocity *= ROTATION_DAMPING;
+    // Mouse look - direct rotation for responsive feel
+    if (input.mouseDeltaX !== 0) {
+        const rotationChange = input.mouseDeltaX * mouseSensitivity;
+        state.rotation += rotationChange;
+        // Set rotationVelocity for visual banking effect
+        state.rotationVelocity = rotationChange * 2;
     }
 
-    // Apply rotation
-    state.rotation += state.rotationVelocity;
+    // Keyboard A/D turning - apply directly to rotation for consistent feel with mouse
+    // Also add to rotationVelocity for visual banking
+    if (input.left > 0) {
+        const turnAmount = effectiveTurnSpeed * 0.6 * input.left;
+        state.rotation += turnAmount;
+        state.rotationVelocity += turnAmount * 1.5; // Visual banking
+    }
+    if (input.right > 0) {
+        const turnAmount = effectiveTurnSpeed * 0.6 * input.right;
+        state.rotation -= turnAmount;
+        state.rotationVelocity -= turnAmount * 1.5; // Visual banking
+    }
+
+    // Touch input
+    if (input.turnRate !== undefined && input.turnRate !== 0) {
+        const turnAmount = input.turnRate * effectiveTurnSpeed * 1.2;
+        state.rotation += turnAmount;
+        state.rotationVelocity += (turnAmount * 2 - state.rotationVelocity) * 0.3;
+    }
+
+    // Always apply damping to rotationVelocity for smooth visual banking decay
+    state.rotationVelocity *= ROTATION_DAMPING;
 }
 
 // Update horizontal thrust
