@@ -276,15 +276,15 @@ export class NetworkManager {
 
     private validateWormCollected(message: Record<string, unknown>): boolean {
         if (!this.validateMessage(message, ['wormId', 'playerId', 'newScore'])) return false;
-        return typeof message.wormId === 'string' &&
-               typeof message.playerId === 'string' &&
+        return (typeof message.wormId === 'string' || typeof message.wormId === 'number') &&
+               (typeof message.playerId === 'string' || typeof message.playerId === 'number') &&
                typeof message.newScore === 'number' && !isNaN(message.newScore);
     }
 
     private validateFlyCollected(message: Record<string, unknown>): boolean {
         if (!this.validateMessage(message, ['flyId', 'playerId', 'newScore'])) return false;
-        return typeof message.flyId === 'string' &&
-               typeof message.playerId === 'string' &&
+        return (typeof message.flyId === 'string' || typeof message.flyId === 'number') &&
+               (typeof message.playerId === 'string' || typeof message.playerId === 'number') &&
                typeof message.newScore === 'number' && !isNaN(message.newScore);
     }
 
@@ -359,15 +359,15 @@ export class NetworkManager {
 
             case 'worm_collected':
                 if (!this.validateWormCollected(message)) {
-                    console.error('Invalid worm_collected message format');
+                    console.error('Invalid worm_collected message format', message);
                     break;
                 }
                 this.triggerCallback('wormCollected', {
-                    wormId: message.wormId as string,
-                    playerId: message.playerId as string,
-                    playerName: message.playerName as string,
-                    newScore: message.newScore as number,
-                    isGolden: (message.isGolden as boolean) || false
+                    wormId: message.wormId,
+                    playerId: message.playerId,
+                    playerName: message.playerName,
+                    newScore: message.newScore,
+                    isGolden: message.isGolden || false
                 });
                 break;
 
@@ -377,14 +377,14 @@ export class NetworkManager {
 
             case 'fly_collected':
                 if (!this.validateFlyCollected(message)) {
-                    console.error('Invalid fly_collected message format');
+                    console.error('Invalid fly_collected message format', message);
                     break;
                 }
                 this.triggerCallback('flyCollected', {
-                    flyId: message.flyId as string,
-                    playerId: message.playerId as string,
-                    playerName: message.playerName as string,
-                    newScore: message.newScore as number
+                    flyId: message.flyId,
+                    playerId: message.playerId,
+                    playerName: message.playerName,
+                    newScore: message.newScore
                 });
                 break;
 

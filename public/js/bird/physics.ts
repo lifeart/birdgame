@@ -20,16 +20,19 @@ export interface PhysicsState {
 
 // Normalized input for physics calculations
 interface NormalizedInput {
-    left: number;      // Strafe left
-    right: number;     // Strafe right
-    forward: number;
-    backward: number;
-    up: number;
-    down: number;
-    turnRate: number | undefined;
-    mouseDeltaX: number;  // Mouse look rotation
-    mouseDeltaY: number;  // Mouse look pitch
-    isTouch: boolean;
+    left: number;      // Strafe left (0-1)
+    right: number;     // Strafe right (0-1)
+    forward: number;   // Forward thrust (0-1)
+    backward: number;  // Backward thrust (0-1)
+    up: number;        // Ascend/flap (0-1)
+    down: number;      // Descend (0-1)
+}
+
+// Movement intent in world space
+interface MovementIntent {
+    x: number;  // World X direction
+    z: number;  // World Z direction
+    magnitude: number;  // 0-1 input strength
 }
 
 // Normalize input values (support both boolean and analog 0-1)
@@ -40,59 +43,137 @@ function normalizeInput(input: BirdInput): NormalizedInput {
         forward: typeof input.forward === 'number' ? input.forward : (input.forward ? 1 : 0),
         backward: typeof input.backward === 'number' ? input.backward : (input.backward ? 1 : 0),
         up: typeof input.up === 'number' ? input.up : (input.up ? 1 : 0),
-        down: typeof input.down === 'number' ? input.down : (input.down ? 1 : 0),
-        turnRate: input.turnRate,
-        mouseDeltaX: input.mouseDeltaX || 0,
-        mouseDeltaY: input.mouseDeltaY || 0,
-        isTouch: input.isTouch || false
+        down: typeof input.down === 'number' ? input.down : (input.down ? 1 : 0)
     };
 }
 
-// Update rotation physics
-function updateRotation(
+// Compute movement intent in world space based on camera angle
+function computeMovementIntent(input: NormalizedInput, cameraAngle: number): MovementIntent {
+    // Camera forward and right vectors (in XZ plane)
+    // cameraAngle is the camera's orbit angle around the bird
+    // Camera looks toward bird, so forward direction is opposite of camera angle
+    const forwardAngle = cameraAngle + Math.PI;
+
+    // Optimize: compute sin/cos once and derive right vector mathematically
+    const sinFwd = Math.sin(forwardAngle);
+    const cosFwd = Math.cos(forwardAngle);
+
+    // Combine inputs into movement direction
+    const inputForward = input.forward - input.backward;
+    const inputRight = input.right - input.left;
+
+    // World-space movement vector
+    // Forward: (sinFwd, cosFwd), Right (90° clockwise): (-cosFwd, sinFwd)
+    const moveX = sinFwd * inputForward - cosFwd * inputRight;
+    const moveZ = cosFwd * inputForward + sinFwd * inputRight;
+
+    // Magnitude (clamped to 1)
+    const magnitude = Math.min(1, Math.sqrt(moveX * moveX + moveZ * moveZ));
+
+    // Normalize if there's movement
+    if (magnitude > 0.001) {
+        return {
+            x: moveX / magnitude,
+            z: moveZ / magnitude,
+            magnitude
+        };
+    }
+
+    return { x: 0, z: 0, magnitude: 0 };
+}
+
+// Update GTA-style movement - applies thrust in computed direction
+function updateGTAMovement(
+    state: PhysicsState,
+    movement: MovementIntent
+): void {
+    if (movement.magnitude > 0.001) {
+        const accel = state.currentAcceleration * movement.magnitude;
+        state.velocity.x += movement.x * accel;
+        state.velocity.z += movement.z * accel;
+    }
+
+    // Calculate horizontal speed
+    state.horizontalSpeed = Math.sqrt(
+        state.velocity.x * state.velocity.x +
+        state.velocity.z * state.velocity.z
+    );
+
+    // Clamp to current max speed
+    if (state.horizontalSpeed > state.currentMaxSpeed) {
+        const ratio = state.currentMaxSpeed / state.horizontalSpeed;
+        state.velocity.x *= ratio;
+        state.velocity.z *= ratio;
+        state.horizontalSpeed = state.currentMaxSpeed;
+    }
+}
+
+// Update auto-rotation - bird smoothly rotates toward movement direction
+// Only rotates when moving forward (like a car - reverse doesn't turn)
+function updateAutoRotation(
+    state: PhysicsState,
+    movement: MovementIntent,
+    config: BirdTypeConfig,
+    hasForwardInput: boolean
+): void {
+    // Only rotate when moving forward (not when reversing or stationary)
+    if (movement.magnitude < 0.1 || !hasForwardInput) {
+        // When stationary or reversing, just apply damping
+        state.rotationVelocity *= ROTATION_DAMPING;
+        return;
+    }
+
+    // Calculate target rotation from movement direction
+    const targetRotation = Math.atan2(movement.x, movement.z);
+
+    // Calculate shortest angle difference
+    let angleDiff = targetRotation - state.rotation;
+    while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+    while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+
+    // Smooth rotation toward target (faster turn speed for GTA feel)
+    const turnSpeed = config.turnSpeed * 1.5;
+    const maxTurn = turnSpeed * movement.magnitude;
+
+    // Apply rotation
+    if (Math.abs(angleDiff) > 0.01) {
+        const turnAmount = Math.sign(angleDiff) * Math.min(Math.abs(angleDiff) * 0.15, maxTurn);
+        state.rotation += turnAmount;
+        // Set rotation velocity for visual banking effect
+        state.rotationVelocity = turnAmount * 2;
+    } else {
+        state.rotation = targetRotation;
+    }
+
+    // Apply damping to rotation velocity
+    state.rotationVelocity *= ROTATION_DAMPING;
+}
+
+// Legacy rotation physics (kept for backward compatibility when no camera angle provided)
+function updateRotationLegacy(
     state: PhysicsState,
     input: NormalizedInput,
     config: BirdTypeConfig
 ): void {
-    // Mouse look sensitivity
-    const mouseSensitivity = 0.003;
-
     // Balance: higher speed = lower turn rate (50% turn rate at max speed)
-    // Less aggressive than before for better high-speed control
     const minTurnRatio = 0.5;
     const speedRatio = Math.min(1, state.horizontalSpeed / state.currentMaxSpeed);
     const turnMultiplier = 1 - (1 - minTurnRatio) * speedRatio;
     const effectiveTurnSpeed = config.turnSpeed * turnMultiplier;
 
-    // Mouse look - direct rotation for responsive feel
-    if (input.mouseDeltaX !== 0) {
-        const rotationChange = input.mouseDeltaX * mouseSensitivity;
-        state.rotation += rotationChange;
-        // Set rotationVelocity for visual banking effect
-        state.rotationVelocity = rotationChange * 2;
-    }
-
-    // Keyboard A/D turning - apply directly to rotation for consistent feel with mouse
-    // Also add to rotationVelocity for visual banking
+    // Keyboard A/D turning
     if (input.left > 0) {
         const turnAmount = effectiveTurnSpeed * 0.6 * input.left;
         state.rotation += turnAmount;
-        state.rotationVelocity += turnAmount * 1.5; // Visual banking
+        state.rotationVelocity += turnAmount * 1.5;
     }
     if (input.right > 0) {
         const turnAmount = effectiveTurnSpeed * 0.6 * input.right;
         state.rotation -= turnAmount;
-        state.rotationVelocity -= turnAmount * 1.5; // Visual banking
+        state.rotationVelocity -= turnAmount * 1.5;
     }
 
-    // Touch input
-    if (input.turnRate !== undefined && input.turnRate !== 0) {
-        const turnAmount = input.turnRate * effectiveTurnSpeed * 1.2;
-        state.rotation += turnAmount;
-        state.rotationVelocity += (turnAmount * 2 - state.rotationVelocity) * 0.3;
-    }
-
-    // Always apply damping to rotationVelocity for smooth visual banking decay
+    // Always apply damping
     state.rotationVelocity *= ROTATION_DAMPING;
 }
 
@@ -211,18 +292,31 @@ function applyBounds(state: PhysicsState): void {
 }
 
 // Main physics update function
+// cameraAngle: Optional camera orbit angle for GTA-style movement
 export function updatePhysics(
     input: BirdInput,
     state: PhysicsState,
-    config: BirdTypeConfig
+    config: BirdTypeConfig,
+    cameraAngle?: number
 ): void {
     const normalizedInput = normalizeInput(input);
 
-    // Update rotation
-    updateRotation(state, normalizedInput, config);
+    // GTA-style controls when camera angle is provided
+    if (cameraAngle !== undefined) {
+        // Compute movement direction relative to camera
+        const movement = computeMovementIntent(normalizedInput, cameraAngle);
 
-    // Update horizontal thrust
-    updateHorizontalThrust(state, normalizedInput);
+        // Apply GTA movement
+        updateGTAMovement(state, movement);
+
+        // Auto-rotate bird toward movement direction (only when moving forward, like a car)
+        const hasForwardInput = normalizedInput.forward > 0;
+        updateAutoRotation(state, movement, config, hasForwardInput);
+    } else {
+        // Legacy mode: bird-relative controls
+        updateRotationLegacy(state, normalizedInput, config);
+        updateHorizontalThrust(state, normalizedInput);
+    }
 
     // Update vertical movement based on bird type (gravity applied inside each function)
     if (config.canFly === false) {

@@ -181,9 +181,8 @@ export function getMergedInput(
 ): MergedInput {
     const touchInput = touchControls ? touchControls.getInput() : null;
 
-    // Mouse look takes priority when pointer is locked
-    const useMouseLook = input.pointerLocked && (input.mouseDeltaX !== 0 || input.mouseDeltaY !== 0);
-
+    // GTA-style: Arrow keys and touch joystick both provide movement relative to camera
+    // Left/right now strafe instead of turning
     return {
         forward: input.forward ? 1 : (touchInput ? touchInput.forward : 0),
         backward: input.backward ? 1 : (touchInput ? touchInput.backward : 0),
@@ -191,10 +190,10 @@ export function getMergedInput(
         right: input.right ? 1 : (touchInput ? touchInput.right : 0),
         up: input.up ? 1 : (touchInput ? touchInput.up : 0),
         down: input.down ? 1 : (touchInput ? touchInput.down : 0),
-        // Mouse look overrides touch turn rate
-        turnRate: useMouseLook ? 0 : (touchInput ? touchInput.turnRate : 0),
-        mouseDeltaX: input.mouseDeltaX,
-        mouseDeltaY: input.mouseDeltaY,
+        // turnRate no longer used in GTA mode (kept for backward compatibility)
+        turnRate: touchInput ? touchInput.turnRate : 0,
+        mouseDeltaX: 0, // Mouse now controls camera, not bird rotation
+        mouseDeltaY: 0,
         isTouch: touchInput ? touchInput.isTouch : false
     };
 }
@@ -204,41 +203,6 @@ export interface MouseHandlerState {
     dragButton: number | null;
     lastMouseX: number;
     lastMouseY: number;
-}
-
-// Pointer lock handlers for Half-Life style mouse look
-export function createPointerLockHandlers(
-    canvas: HTMLCanvasElement,
-    input: InputState,
-    ui: UIManager
-): {
-    click: (e: MouseEvent) => void;
-    pointerlockchange: () => void;
-    mousemove: (e: MouseEvent) => void;
-} {
-    const click = (e: MouseEvent) => {
-        // Only request pointer lock if clicking on canvas and not on UI
-        if (e.target === canvas && !input.pointerLocked) {
-            canvas.requestPointerLock();
-        }
-    };
-
-    const pointerlockchange = () => {
-        input.pointerLocked = document.pointerLockElement === canvas;
-        if (input.pointerLocked) {
-            ui.showCameraMode('Mouse Look (ESC to exit)');
-        }
-    };
-
-    const mousemove = (e: MouseEvent) => {
-        if (input.pointerLocked) {
-            // Accumulate mouse movement for this frame
-            input.mouseDeltaX += e.movementX;
-            input.mouseDeltaY += e.movementY;
-        }
-    };
-
-    return { click, pointerlockchange, mousemove };
 }
 
 export function createMouseHandlers(

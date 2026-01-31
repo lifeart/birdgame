@@ -171,16 +171,17 @@ export const GRAVITY = 0.004;
 export const AIR_RESISTANCE = 0.985;
 export const ROTATION_DAMPING = 0.85;
 
-// Input interface for bird update
+// Input interface for bird update (GTA-style: camera-relative movement)
 export interface BirdInput {
-    left?: boolean | number;     // Strafe left
-    right?: boolean | number;    // Strafe right
-    forward?: boolean | number;
-    backward?: boolean | number;
-    up?: boolean | number;
-    down?: boolean | number;
+    left?: boolean | number;     // Strafe left (camera-relative)
+    right?: boolean | number;    // Strafe right (camera-relative)
+    forward?: boolean | number;  // Move forward (camera-relative)
+    backward?: boolean | number; // Move backward (camera-relative)
+    up?: boolean | number;       // Ascend/flap
+    down?: boolean | number;     // Descend
+    // Legacy fields - kept for interface compatibility but unused
     turnRate?: number;
-    mouseDeltaX?: number;  // Mouse look X (rotation)
-    mouseDeltaY?: number;  // Mouse look Y (pitch - unused for now)
+    mouseDeltaX?: number;
+    mouseDeltaY?: number;
     isTouch?: boolean;
 }

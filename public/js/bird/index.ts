@@ -1634,10 +1634,10 @@ export class Bird {
         };
     }
 
-    update(input: BirdInput, _delta: number): void {
+    update(input: BirdInput, _delta: number, cameraAngle?: number): void {
         // Update physics if this is a player-controlled bird
         if (this.isPlayer) {
-            updatePhysics(input, this.physics, this.config);
+            updatePhysics(input, this.physics, this.config, cameraAngle);
         }
 
         // Update animations (for both player and other birds)

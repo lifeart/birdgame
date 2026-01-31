@@ -31,13 +31,13 @@ export const GAME_CONSTANTS = {
 export interface InputState {
     forward: boolean;
     backward: boolean;
-    left: boolean;
-    right: boolean;
+    left: boolean;   // Strafe left (GTA-style)
+    right: boolean;  // Strafe right (GTA-style)
     up: boolean;
     down: boolean;
     cameraLeft: boolean;
     cameraRight: boolean;
-    // Mouse look (Half-Life style)
+    // Legacy mouse look fields (unused in GTA mode, kept for compatibility)
     mouseDeltaX: number;
     mouseDeltaY: number;
     pointerLocked: boolean;
@@ -55,21 +55,19 @@ export interface CameraOrbitState {
     maxDistance: number;
     minPitch: number;
     maxPitch: number;
-    maxFollowAngleOffset: number;
-    maxRotationRate: number;
 }
 
 // Merged input from keyboard + touch
 export interface MergedInput {
     forward: number;
     backward: number;
-    left: number;  // Strafe left
-    right: number; // Strafe right
+    left: number;   // Strafe left (GTA-style camera-relative)
+    right: number;  // Strafe right (GTA-style camera-relative)
     up: number;
     down: number;
-    turnRate: number;
-    mouseDeltaX: number; // Mouse look X
-    mouseDeltaY: number; // Mouse look Y
+    turnRate: number;  // Legacy field, unused in GTA mode
+    mouseDeltaX: number; // Legacy, unused in GTA mode
+    mouseDeltaY: number; // Legacy, unused in GTA mode
     isTouch: boolean;
 }
 

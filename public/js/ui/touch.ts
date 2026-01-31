@@ -189,7 +189,7 @@ export class TouchControls {
                 <button class="touch-btn-small" id="btn-chat">💬</button>
             </div>
             <div class="touch-hint" id="touch-hint">
-                ← Joystick to move • Buttons for up/down → • Swipe center to look around
+                ← Joystick to move (camera-relative) • Up/Down buttons → • Swipe to orbit camera
             </div>
         `;
         document.body.appendChild(this.container);
@@ -984,12 +984,18 @@ export class TouchControls {
 
                 const smoothY = Math.sign(normalizedY) * Math.pow(Math.abs(normalizedY), 1.5);
 
+                // Forward/backward movement
                 if (smoothY < -0.15) input.forward = Math.abs(smoothY);
                 if (smoothY > 0.15) input.backward = smoothY;
 
+                // GTA-style: X-axis is now strafe (left/right) instead of turn
                 if (Math.abs(normalizedX) > 0.15) {
-                    const smoothX = Math.sign(normalizedX) * Math.pow(Math.abs(normalizedX), 1.8);
-                    input.turnRate = -smoothX * 0.6;
+                    const smoothX = Math.sign(normalizedX) * Math.pow(Math.abs(normalizedX), 1.5);
+                    if (smoothX > 0) {
+                        input.right = smoothX;
+                    } else {
+                        input.left = Math.abs(smoothX);
+                    }
                 }
             }
         }

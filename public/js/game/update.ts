@@ -13,7 +13,7 @@ import type { InputState, CameraOrbitState, MergedInput, OtherPlayer } from './t
 import type { CameraMode } from '../ui/index.ts';
 import { GAME_CONSTANTS } from './types.ts';
 import { getMergedInput } from './input.ts';
-import { updateCamera, handleCameraKeyInput } from './camera.ts';
+import { updateCamera, handleCameraKeyInput, getCameraWorldAngle } from './camera.ts';
 
 // Context interface for update operations
 export interface UpdateContext {
@@ -73,9 +73,12 @@ export function update(ctx: UpdateContext, delta: number): void {
 
     const mergedInput: MergedInput = getMergedInput(ctx.input, ctx.touchControls);
 
-    ctx.playerBird.update(mergedInput, delta);
+    // Get camera angle for GTA-style movement
+    const cameraAngle = getCameraWorldAngle(ctx.cameraOrbit);
 
-    // Clear mouse delta after consuming input (so it doesn't accumulate)
+    ctx.playerBird.update(mergedInput, delta, cameraAngle);
+
+    // Clear mouse delta (not used in GTA mode, but kept for compatibility)
     ctx.input.mouseDeltaX = 0;
     ctx.input.mouseDeltaY = 0;
 
@@ -135,7 +138,7 @@ export function update(ctx: UpdateContext, delta: number): void {
     const newCameraMode = handleCameraKeyInput(ctx.input, ctx.cameraOrbit, ctx.cameraMode);
     ctx.setCameraMode(newCameraMode);
 
-    // Update camera
+    // Update camera (GTA-style: no pointer lock needed)
     if (ctx.camera && ctx.playerBird) {
         updateCamera(
             ctx.camera,
@@ -143,8 +146,7 @@ export function update(ctx: UpdateContext, delta: number): void {
             ctx.cameraMode,
             ctx.playerBird.position,
             ctx.playerBird.rotation,
-            ctx.playerBird.getVisualRotation(),
-            ctx.input.pointerLocked
+            ctx.playerBird.getVisualRotation()
         );
     }
 

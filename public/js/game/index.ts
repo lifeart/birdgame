@@ -25,7 +25,6 @@ import {
     createKeyupHandler,
     resetInputState,
     createMouseHandlers,
-    createPointerLockHandlers,
     type MouseHandlerState,
     type InputHandlerCallbacks,
     type InputHandlerDeps
@@ -281,7 +280,7 @@ export class Game {
             cameraModeRef.current = mode;
         };
 
-        // Standard mouse handlers for camera orbit
+        // Mouse handlers for camera orbit (GTA-style: mouse always orbits camera)
         const handlers = createMouseHandlers(
             canvas,
             this.cameraOrbit,
@@ -291,24 +290,13 @@ export class Game {
             setCameraMode
         );
 
-        // Half-Life style pointer lock handlers
-        const pointerLockHandlers = createPointerLockHandlers(canvas, this.input, this.ui);
-
         this.boundHandlers.mousedown = handlers.mousedown;
         this.boundHandlers.mouseup = handlers.mouseup;
-        // Combine pointer lock mousemove with camera orbit mousemove
-        this.boundHandlers.mousemove = (e: MouseEvent) => {
-            pointerLockHandlers.mousemove(e);
-            if (!this.input.pointerLocked) {
-                handlers.mousemove(e);
-            }
-        };
+        this.boundHandlers.mousemove = handlers.mousemove;
         this.boundHandlers.wheel = handlers.wheel;
         this.boundHandlers.contextmenu = handlers.contextmenu;
 
         canvas.addEventListener('mousedown', this.boundHandlers.mousedown);
-        canvas.addEventListener('click', pointerLockHandlers.click);
-        document.addEventListener('pointerlockchange', pointerLockHandlers.pointerlockchange);
         window.addEventListener('mouseup', this.boundHandlers.mouseup);
         window.addEventListener('mousemove', this.boundHandlers.mousemove);
         canvas.addEventListener('wheel', this.boundHandlers.wheel, { passive: false });
@@ -318,8 +306,9 @@ export class Game {
     private resetCamera(): void {
         const birdRotation = this.playerBird ? this.playerBird.rotation : null;
         resetCameraOrbit(this.cameraOrbit, birdRotation);
-        this.cameraMode = CAMERA_MODES.FOLLOW;
-        this.ui?.showCameraMode('Follow');
+        // GTA-style: after reset, camera stays independent (ORBIT mode)
+        this.cameraMode = CAMERA_MODES.ORBIT;
+        this.ui?.showCameraMode('Camera Reset');
     }
 
     // Public for GameInterface (TouchControls)
