@@ -126,27 +126,33 @@ function updateAutoRotation(
     // Calculate target rotation from movement direction
     const targetRotation = Math.atan2(movement.x, movement.z);
 
-    // Calculate shortest angle difference
+    // Calculate shortest angle difference with safety check
     let angleDiff = targetRotation - state.rotation;
-    while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-    while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+    if (Number.isFinite(angleDiff)) {
+        let iterations = 0;
+        while (angleDiff > Math.PI && iterations < 4) { angleDiff -= Math.PI * 2; iterations++; }
+        while (angleDiff < -Math.PI && iterations < 8) { angleDiff += Math.PI * 2; iterations++; }
+    } else {
+        return; // Skip rotation update if we have invalid data
+    }
 
-    // Smooth rotation toward target (faster turn speed for GTA feel)
-    const turnSpeed = config.turnSpeed * 1.5;
-    const maxTurn = turnSpeed * movement.magnitude;
+    // Gradual rotation toward target - slower for more cinematic turns
+    // Lower smoothing = more gradual turn
+    const turnSmoothFactor = 0.06;  // How much of the angle difference to cover per frame
+    const maxTurn = config.turnSpeed * 0.8 * movement.magnitude;  // Cap turn rate
 
     // Apply rotation
     if (Math.abs(angleDiff) > 0.01) {
-        const turnAmount = Math.sign(angleDiff) * Math.min(Math.abs(angleDiff) * 0.15, maxTurn);
+        const turnAmount = Math.sign(angleDiff) * Math.min(Math.abs(angleDiff) * turnSmoothFactor, maxTurn);
         state.rotation += turnAmount;
-        // Set rotation velocity for visual banking effect
-        state.rotationVelocity = turnAmount * 2;
+        // Set rotation velocity for visual banking and camera effects
+        // Amplify turnAmount (typically 0-0.05) to useful range for camera (0-0.2)
+        state.rotationVelocity = turnAmount * 3;
     } else {
         state.rotation = targetRotation;
+        // When aligned, decay rotation velocity for smooth settling
+        state.rotationVelocity *= ROTATION_DAMPING;
     }
-
-    // Apply damping to rotation velocity
-    state.rotationVelocity *= ROTATION_DAMPING;
 }
 
 // Legacy rotation physics (kept for backward compatibility when no camera angle provided)
@@ -157,7 +163,8 @@ function updateRotationLegacy(
 ): void {
     // Balance: higher speed = lower turn rate (50% turn rate at max speed)
     const minTurnRatio = 0.5;
-    const speedRatio = Math.min(1, state.horizontalSpeed / state.currentMaxSpeed);
+    const safeMaxSpeed = state.currentMaxSpeed > 0 ? state.currentMaxSpeed : 1;
+    const speedRatio = Math.min(1, state.horizontalSpeed / safeMaxSpeed);
     const turnMultiplier = 1 - (1 - minTurnRatio) * speedRatio;
     const effectiveTurnSpeed = config.turnSpeed * turnMultiplier;
 

@@ -139,6 +139,7 @@ export function update(ctx: UpdateContext, delta: number): void {
     ctx.setCameraMode(newCameraMode);
 
     // Update camera (GTA-style: no pointer lock needed)
+    // Pass bird dynamics for cinematic camera during turns
     if (ctx.camera && ctx.playerBird) {
         updateCamera(
             ctx.camera,
@@ -146,7 +147,10 @@ export function update(ctx: UpdateContext, delta: number): void {
             ctx.cameraMode,
             ctx.playerBird.position,
             ctx.playerBird.rotation,
-            ctx.playerBird.getVisualRotation()
+            ctx.playerBird.getVisualRotation(),
+            ctx.playerBird.rotationVelocity,
+            ctx.playerBird.horizontalSpeed,
+            ctx.playerBird.currentMaxSpeed
         );
     }
 

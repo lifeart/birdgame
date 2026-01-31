@@ -55,6 +55,10 @@ export interface CameraOrbitState {
     maxDistance: number;
     minPitch: number;
     maxPitch: number;
+    // Cinematic camera state
+    bankAngle: number;        // Camera roll during turns
+    lateralOffset: number;    // Offset to outside of turn
+    lookAheadOffset: number;  // Dynamic look-ahead based on speed
 }
 
 // Merged input from keyboard + touch

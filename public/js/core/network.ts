@@ -363,11 +363,11 @@ export class NetworkManager {
                     break;
                 }
                 this.triggerCallback('wormCollected', {
-                    wormId: message.wormId,
-                    playerId: message.playerId,
-                    playerName: message.playerName,
-                    newScore: message.newScore,
-                    isGolden: message.isGolden || false
+                    wormId: message.wormId as string,
+                    playerId: message.playerId as string,
+                    playerName: message.playerName as string,
+                    newScore: message.newScore as number,
+                    isGolden: (message.isGolden as boolean | undefined) || false
                 });
                 break;
 
@@ -381,10 +381,10 @@ export class NetworkManager {
                     break;
                 }
                 this.triggerCallback('flyCollected', {
-                    flyId: message.flyId,
-                    playerId: message.playerId,
-                    playerName: message.playerName,
-                    newScore: message.newScore
+                    flyId: message.flyId as string,
+                    playerId: message.playerId as string,
+                    playerName: message.playerName as string,
+                    newScore: message.newScore as number
                 });
                 break;
 
