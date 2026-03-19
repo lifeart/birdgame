@@ -238,6 +238,20 @@
             </div>
         </div>
         <button id="startGame" class="start-btn">Start Game</button>
+        <div class="menu-section multiplayer-section">
+            <h3>Or Play Multiplayer (P2P):</h3>
+            <div class="multiplayer-options">
+                <button id="createRoom" class="multiplayer-btn">Create Room</button>
+                <div class="join-room">
+                    <input type="text" id="roomCode" placeholder="Room Code" maxlength="6" style="text-transform: uppercase;">
+                    <button id="joinRoom" class="multiplayer-btn">Join Room</button>
+                </div>
+            </div>
+            <div id="roomInfo" class="room-info hidden">
+                <span>Room Code: <strong id="roomCodeDisplay"></strong></span>
+                <button id="copyRoomCode" class="copy-btn">Copy</button>
+            </div>
+        </div>
     </div>
 
     <!-- Game UI -->

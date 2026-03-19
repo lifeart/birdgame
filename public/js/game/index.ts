@@ -5,7 +5,7 @@ import { Bird } from '../bird/index.ts';
 import { WormManager, FlyManager } from '../entities/index.ts';
 import { WeatherSystem, LOCATIONS } from '../environment/index.ts';
 import { EffectsManager, AmbientParticleSystem } from '../effects/index.ts';
-import { NetworkManager, DemoNetworkManager, AudioManager, ProgressionManager, DailyRewardsManager, type LevelReward, type ClaimedReward } from '../core/index.ts';
+import { NetworkManager, DemoNetworkManager, WebRTCNetworkManager, AudioManager, ProgressionManager, DailyRewardsManager, type LevelReward, type ClaimedReward, type AnyNetworkManager } from '../core/index.ts';
 import { UIManager, TouchControls, CAMERA_MODES, type CameraMode, type GameInterface } from '../ui/index.ts';
 
 import {
@@ -39,6 +39,8 @@ import {
 import { setupNetworkCallbacks, type NetworkCallbackContext } from './callbacks.ts';
 import {
     startGame as startGameLifecycle,
+    loadLocation as loadLocationLifecycle,
+    applyUnlockedEffects as applyUnlockedEffectsLifecycle,
     changeLocation as changeLocationLifecycle,
     respawnPlayer as respawnPlayerLifecycle,
     addOtherPlayer as addOtherPlayerLifecycle,
@@ -71,7 +73,7 @@ export class Game {
     private effectsManager: EffectsManager | null = null;
     private ambientParticles: AmbientParticleSystem | null = null;
 
-    private network: NetworkManager | DemoNetworkManager | null = null;
+    private network: AnyNetworkManager | null = null;
     // Public for GameInterface (TouchControls)
     public ui: UIManager | null = null;
 
@@ -354,6 +356,43 @@ export class Game {
             this.paused = false;
             this.audioManager?.playResume();
         });
+
+        this.ui.on('createRoom', (data: { playerName: string; bird: string; location: string }) => {
+            if (this.audioManager) {
+                this.audioManager.init();
+                this.audioManager.resume();
+                this.audioManager.playGameStart();
+            }
+            const webrtc = new WebRTCNetworkManager();
+            this.setNetwork(webrtc);
+            webrtc.createRoom(data.playerName, data.bird, data.location).then((gameData) => {
+                this.ui?.showRoomCode(webrtc.getRoomCode() || '');
+                const ctx = this.createLifecycleContext();
+                this.startGameWithData(ctx, gameData, data.bird, data.location);
+            }).catch((err) => {
+                console.error('Failed to create room:', err);
+                this.ui?.addChatMessage('', `Failed to create room: ${err.message}`, true);
+            });
+        });
+
+        this.ui.on('joinRoom', (data: { roomCode: string; playerName: string; bird: string; location: string }) => {
+            if (this.audioManager) {
+                this.audioManager.init();
+                this.audioManager.resume();
+                this.audioManager.playGameStart();
+            }
+            const webrtc = new WebRTCNetworkManager();
+            this.setNetwork(webrtc);
+            this.ui?.showConnectionStatus('connecting');
+            webrtc.joinRoom(data.roomCode, data.playerName, data.bird, data.location).then((gameData) => {
+                const ctx = this.createLifecycleContext();
+                this.startGameWithData(ctx, gameData, data.bird, data.location);
+            }).catch((err) => {
+                console.error('Failed to join room:', err);
+                this.ui?.showConnectionStatus('failed', { reason: err.message });
+                this.ui?.addChatMessage('', `Failed to join room: ${err.message}`, true);
+            });
+        });
     }
 
     private setupProgressionCallbacks(): void {
@@ -431,7 +470,7 @@ export class Game {
         setupNetworkCallbacks(proxyCtx);
     }
 
-    private setNetwork(network: NetworkManager | DemoNetworkManager): void {
+    private setNetwork(network: AnyNetworkManager): void {
         if (this.network) {
             this.network.removeAllCallbacks();
         }
@@ -442,6 +481,55 @@ export class Game {
     async startGame(playerName: string, birdType: string, location: string): Promise<void> {
         const ctx = this.createLifecycleContext();
         await startGameLifecycle(ctx, playerName, birdType, location);
+    }
+
+    private startGameWithData(ctx: LifecycleContext, gameData: import('../core/network.ts').WelcomeData, birdType: string, location: string): void {
+        if (!ctx.ui || !ctx.scene || !ctx.world) return;
+
+        this.isRunning = true;
+        ctx.ui.hideMenu();
+        ctx.ui.showConnectionStatus('connected');
+        ctx.setCurrentLocation(location);
+        ctx.ui.setLocation(location);
+
+        if (ctx.touchControls && ctx.touchControls.isEnabled()) {
+            ctx.touchControls.show();
+        }
+
+        loadLocationLifecycle(ctx, location);
+
+        const playerBird = new Bird(ctx.scene, birdType, true);
+        ctx.setPlayerBird(playerBird);
+        const birdRadius = playerBird.getCollisionRadius();
+        const safePos = ctx.world.findSafeSpawnPosition(0, 0, 15, birdRadius);
+        playerBird.setPosition(safePos.x, safePos.y, safePos.z);
+
+        const score = gameData.player?.score || 0;
+        ctx.setScore(score);
+        playerBird.setWormCount(score);
+
+        this.cameraOrbit.targetDistance = 8 + playerBird.config.size * 2;
+        this.cameraOrbit.distance = this.cameraOrbit.targetDistance;
+
+        if (gameData.worms && ctx.wormManager) ctx.wormManager.addWorms(gameData.worms);
+        if (gameData.flies && ctx.flyManager) ctx.flyManager.addFlies(gameData.flies);
+        if (gameData.players) {
+            gameData.players.forEach((player: PlayerData) => this.addOtherPlayer(player));
+        }
+
+        ctx.ui.updateScore(score);
+        ctx.updatePlayerList();
+        ctx.ui.showLeaderboard();
+
+        if (gameData.leaderboard) {
+            const rankedLeaderboard = gameData.leaderboard.map((entry, index) => ({
+                rank: index + 1, name: entry.name, score: entry.score,
+            }));
+            ctx.ui.updateLeaderboard(rankedLeaderboard, this.network?.getPlayerName() ?? '');
+        }
+
+        applyUnlockedEffectsLifecycle(ctx);
+        this.animateLoop();
     }
 
     private changeLocation(location: string, worms: WormData[], flies: FlyData[], players: PlayerData[]): void {
@@ -494,7 +582,7 @@ export class Game {
             updatePlayerList: () => this.updatePlayerList(),
             resetCamera: () => this.resetCamera(),
             animate: () => this.animateLoop(),
-            setNetwork: (network: NetworkManager | DemoNetworkManager) => this.setNetwork(network)
+            setNetwork: (network: AnyNetworkManager) => this.setNetwork(network)
         };
     }
 

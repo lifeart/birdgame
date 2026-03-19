@@ -2,8 +2,8 @@
 import * as THREE from 'three';
 import { Bird } from '../bird/index.ts';
 import { LOCATIONS } from '../environment/index.ts';
-import type { NetworkManager } from '../core/network.ts';
 import { DemoNetworkManager } from '../core/demo-network.ts';
+import type { AnyNetworkManager } from '../core/index.ts';
 import type { AudioManager } from '../core/audio.ts';
 import type { ProgressionManager } from '../core/progression.ts';
 import type { DailyRewardsManager } from '../core/rewards.ts';
@@ -27,7 +27,7 @@ export interface LifecycleContext {
     scene: THREE.Scene | null;
 
     // Managers
-    network: NetworkManager | DemoNetworkManager | null;
+    network: AnyNetworkManager | null;
     ui: UIManager | null;
     audioManager: AudioManager;
     progressionManager: ProgressionManager;
@@ -57,7 +57,7 @@ export interface LifecycleContext {
     updatePlayerList: () => void;
     resetCamera: () => void;
     animate: () => void;
-    setNetwork: (network: NetworkManager | DemoNetworkManager) => void;
+    setNetwork: (network: AnyNetworkManager) => void;
 }
 
 export async function startGame(

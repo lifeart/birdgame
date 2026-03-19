@@ -1,7 +1,6 @@
 // Game update loop module - handles frame updates and rendering
 import * as THREE from 'three';
-import type { NetworkManager } from '../core/network.ts';
-import type { DemoNetworkManager } from '../core/demo-network.ts';
+import type { AnyNetworkManager } from '../core/index.ts';
 import type { AudioManager } from '../core/audio.ts';
 import type { UIManager } from '../ui/manager.ts';
 import type { TouchControls } from '../ui/touch.ts';
@@ -39,7 +38,7 @@ export interface UpdateContext {
     clock: THREE.Clock;
 
     // Managers
-    network: NetworkManager | DemoNetworkManager | null;
+    network: AnyNetworkManager | null;
     ui: UIManager | null;
     audioManager: AudioManager;
     wormManager: WormManager | null;

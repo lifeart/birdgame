@@ -44,6 +44,8 @@ canvas {
     text-align: center;
     z-index: 100;
     min-width: 400px;
+    max-height: 90vh;
+    overflow-y: auto;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
@@ -275,6 +277,103 @@ canvas {
 .start-btn:hover {
     transform: scale(1.05);
     box-shadow: 0 5px 20px rgba(255, 107, 107, 0.4);
+}
+
+/* Multiplayer UI */
+.multiplayer-section {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 15px;
+    margin-top: 10px;
+}
+
+.multiplayer-section h3 {
+    font-size: 14px;
+    color: #aaa;
+    margin-bottom: 10px;
+}
+
+.multiplayer-options {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.multiplayer-btn {
+    padding: 10px 20px;
+    font-size: 14px;
+    background: linear-gradient(45deg, #6b5bff, #57cefa);
+    border: none;
+    border-radius: 20px;
+    color: white;
+    cursor: pointer;
+    transition: transform 0.3s, box-shadow 0.3s;
+    font-weight: bold;
+}
+
+.multiplayer-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 15px rgba(107, 91, 255, 0.4);
+}
+
+.join-room {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.join-room input {
+    width: 100px;
+    padding: 10px;
+    border-radius: 20px;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    font-size: 14px;
+    text-align: center;
+    letter-spacing: 2px;
+    font-weight: bold;
+}
+
+.join-room input::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+    letter-spacing: 0;
+    font-weight: normal;
+}
+
+.room-info {
+    margin-top: 12px;
+    padding: 10px 16px;
+    background: rgba(107, 91, 255, 0.2);
+    border: 1px solid rgba(107, 91, 255, 0.4);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-size: 16px;
+}
+
+.room-info strong {
+    font-size: 20px;
+    letter-spacing: 3px;
+    color: #57cefa;
+}
+
+.copy-btn {
+    padding: 5px 12px;
+    font-size: 12px;
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    color: white;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.copy-btn:hover {
+    background: rgba(255, 255, 255, 0.25);
 }
 
 /* Game UI */

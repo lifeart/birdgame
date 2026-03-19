@@ -85,12 +85,27 @@ interface ConnectionStatusData {
     reason?: string;
 }
 
+interface CreateRoomData {
+    playerName: string;
+    bird: string;
+    location: string;
+}
+
+interface JoinRoomData {
+    roomCode: string;
+    playerName: string;
+    bird: string;
+    location: string;
+}
+
 // Type-safe UI event map
 interface UIEventMap {
     startGame: StartGameData;
     sendChat: string;
     changeLocation: string;
     resumeGame: undefined;
+    createRoom: CreateRoomData;
+    joinRoom: JoinRoomData;
 }
 
 type UICallback<K extends keyof UIEventMap = keyof UIEventMap> = (data: UIEventMap[K]) => void;
@@ -150,6 +165,7 @@ export class UIManager {
         this.setupChatEvents();
         this.setupChatToggle();
         this.createLeaderboard();
+        this.setupMultiplayerEvents();
     }
 
     private loadSavedPreferences(): void {
@@ -736,6 +752,81 @@ export class UIManager {
                 }
             });
         }
+    }
+
+    // ==================== MULTIPLAYER UI ====================
+
+    private setupMultiplayerEvents(): void {
+        const createRoomBtn = document.getElementById('createRoom');
+        const joinRoomBtn = document.getElementById('joinRoom');
+        const roomCodeInput = document.getElementById('roomCode') as HTMLInputElement | null;
+        const copyRoomCodeBtn = document.getElementById('copyRoomCode');
+
+        if (createRoomBtn) {
+            const handler = (): void => {
+                let playerName = this.sanitizePlayerName(this.playerNameInput.value);
+                if (!playerName) {
+                    playerName = generateRandomName();
+                    this.playerNameInput.value = playerName;
+                }
+                saveName(playerName);
+                this.triggerCallback('createRoom', {
+                    playerName,
+                    bird: this.selectedBird,
+                    location: this.selectedLocation,
+                });
+            };
+            createRoomBtn.addEventListener('click', handler);
+            this.boundMenuHandlers.push({ element: createRoomBtn, handler });
+        }
+
+        if (joinRoomBtn && roomCodeInput) {
+            const handler = (): void => {
+                const roomCode = roomCodeInput.value.trim().toUpperCase();
+                if (!roomCode || roomCode.length < 4) {
+                    roomCodeInput.style.borderColor = '#ff4444';
+                    setTimeout(() => { roomCodeInput.style.borderColor = ''; }, 1500);
+                    return;
+                }
+                let playerName = this.sanitizePlayerName(this.playerNameInput.value);
+                if (!playerName) {
+                    playerName = generateRandomName();
+                    this.playerNameInput.value = playerName;
+                }
+                saveName(playerName);
+                this.triggerCallback('joinRoom', {
+                    roomCode,
+                    playerName,
+                    bird: this.selectedBird,
+                    location: this.selectedLocation,
+                });
+            };
+            joinRoomBtn.addEventListener('click', handler);
+            this.boundMenuHandlers.push({ element: joinRoomBtn, handler });
+        }
+
+        if (copyRoomCodeBtn) {
+            const handler = (): void => {
+                const codeDisplay = document.getElementById('roomCodeDisplay');
+                if (codeDisplay?.textContent) {
+                    navigator.clipboard.writeText(codeDisplay.textContent).catch(() => {});
+                    copyRoomCodeBtn.textContent = 'Copied!';
+                    setTimeout(() => { copyRoomCodeBtn.textContent = 'Copy'; }, 1500);
+                }
+            };
+            copyRoomCodeBtn.addEventListener('click', handler);
+            this.boundMenuHandlers.push({ element: copyRoomCodeBtn, handler });
+        }
+    }
+
+    showRoomCode(code: string): void {
+        const roomInfo = document.getElementById('roomInfo');
+        const codeDisplay = document.getElementById('roomCodeDisplay');
+        if (roomInfo && codeDisplay) {
+            codeDisplay.textContent = code;
+            roomInfo.classList.remove('hidden');
+        }
+        this.addChatMessage('', `Room created! Code: ${code}`, true);
     }
 
     cleanup(): void {

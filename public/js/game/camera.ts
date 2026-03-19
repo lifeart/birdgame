@@ -176,11 +176,17 @@ export function updateCamera(
         orbit.lookAheadOffset += (CINEMATIC.MIN_LOOK_AHEAD - orbit.lookAheadOffset) * 0.1;
     }
 
+    // Clamp targetPitch to prevent camera from flipping upside-down
+    orbit.targetPitch = Math.max(orbit.minPitch, Math.min(orbit.maxPitch, orbit.targetPitch));
+
     // Smooth interpolation for orbit angles
     const smoothFactor = 0.12;
     orbit.angle += (orbit.targetAngle - orbit.angle) * smoothFactor;
     orbit.pitch += (orbit.targetPitch - orbit.pitch) * 0.08;
     orbit.distance += (orbit.targetDistance - orbit.distance) * 0.08;
+
+    // Clamp pitch after interpolation as well
+    orbit.pitch = Math.max(orbit.minPitch, Math.min(orbit.maxPitch, orbit.pitch));
 
     // Calculate camera position on orbit sphere
     const effectiveDistance = orbit.distance + normalizedSpeed * CINEMATIC.SPEED_DISTANCE_FACTOR;

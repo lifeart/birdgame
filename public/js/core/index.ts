@@ -39,6 +39,13 @@ export {
     type NetworkEventMap
 } from './network.ts';
 export { DemoNetworkManager } from './demo-network.ts';
+export { WebRTCNetworkManager } from './webrtc-network.ts';
+
+import type { NetworkManager } from './network.ts';
+import type { DemoNetworkManager } from './demo-network.ts';
+import type { WebRTCNetworkManager } from './webrtc-network.ts';
+export type AnyNetworkManager = NetworkManager | DemoNetworkManager | WebRTCNetworkManager;
+
 export {
     distanceSquared,
     distance,
