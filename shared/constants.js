@@ -4,7 +4,7 @@
 const LOCATIONS = ['city', 'park', 'village', 'beach', 'mountain'];
 
 // Valid bird types
-const VALID_BIRDS = ['sparrow', 'pigeon', 'crow', 'hummingbird', 'penguin'];
+const VALID_BIRDS = ['sparrow', 'pigeon', 'crow', 'hummingbird', 'penguin', 'owl', 'goose'];
 
 // Entity spawn settings
 const WORMS_PER_LOCATION = 20;

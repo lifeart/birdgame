@@ -360,7 +360,9 @@ export class UIManager {
             pigeon: '#A9A9A9',
             crow: '#666666',
             hummingbird: '#00ff88',
-            penguin: '#FF6B00'
+            penguin: '#FF6B00',
+            owl: '#C9B28F',
+            goose: '#F2A33A'
         };
         return colors[birdType] || '#ffffff';
     }

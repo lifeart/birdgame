@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { Bird } from '../bird/index.ts';
 import { LOCATIONS } from '../environment/index.ts';
 import type { NetworkManager } from '../core/network.ts';
+import { DemoNetworkManager } from '../core/demo-network.ts';
 import type { AudioManager } from '../core/audio.ts';
 import type { ProgressionManager } from '../core/progression.ts';
 import type { DailyRewardsManager } from '../core/rewards.ts';
@@ -26,7 +27,7 @@ export interface LifecycleContext {
     scene: THREE.Scene | null;
 
     // Managers
-    network: NetworkManager | null;
+    network: NetworkManager | DemoNetworkManager | null;
     ui: UIManager | null;
     audioManager: AudioManager;
     progressionManager: ProgressionManager;
@@ -56,6 +57,7 @@ export interface LifecycleContext {
     updatePlayerList: () => void;
     resetCamera: () => void;
     animate: () => void;
+    setNetwork: (network: NetworkManager | DemoNetworkManager) => void;
 }
 
 export async function startGame(
@@ -152,11 +154,84 @@ export async function startGame(
         ctx.animate();
 
     } catch (error) {
-        ctx.setIsRunning(false);
-        console.error('Failed to connect:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        ctx.ui.showConnectionStatus('failed', { reason: errorMessage });
-        ctx.ui.addChatMessage('', `Failed to connect: ${errorMessage}`, true);
+        console.warn('Server unavailable, starting demo mode:', error);
+
+        // Fall back to demo/offline mode
+        const demoNetwork = new DemoNetworkManager();
+        ctx.setNetwork(demoNetwork);
+
+        try {
+            const gameData = await ctx.network!.connect(playerName, birdType, location);
+
+            if (!ctx.ui || !ctx.scene || !ctx.world) {
+                ctx.setIsRunning(false);
+                return;
+            }
+
+            ctx.ui.hideMenu();
+            ctx.ui.showConnectionStatus('connected');
+            ctx.setCurrentLocation(location);
+            ctx.ui.setLocation(location);
+
+            if (ctx.touchControls && ctx.touchControls.isEnabled()) {
+                ctx.touchControls.show();
+            }
+
+            loadLocation(ctx, location);
+
+            const playerBird = new Bird(ctx.scene, birdType, true);
+            ctx.setPlayerBird(playerBird);
+
+            const birdRadius = playerBird.getCollisionRadius();
+            const safePos = ctx.world.findSafeSpawnPosition(0, 0, 15, birdRadius);
+            playerBird.setPosition(safePos.x, safePos.y, safePos.z);
+
+            const score = gameData.player?.score || 0;
+            ctx.setScore(score);
+            playerBird.setWormCount(score);
+
+            ctx.cameraOrbit.targetDistance = 8 + playerBird.config.size * 2;
+            ctx.cameraOrbit.distance = ctx.cameraOrbit.targetDistance;
+
+            if (gameData.worms && ctx.wormManager) {
+                ctx.wormManager.addWorms(gameData.worms);
+            }
+            if (gameData.flies && ctx.flyManager) {
+                ctx.flyManager.addFlies(gameData.flies);
+            }
+
+            ctx.ui.updateScore(score);
+            ctx.updatePlayerList();
+            ctx.ui.showLeaderboard();
+
+            if (gameData.leaderboard) {
+                const rankedLeaderboard = gameData.leaderboard.map((entry, index) => ({
+                    rank: index + 1,
+                    name: entry.name,
+                    score: entry.score
+                }));
+                ctx.ui.updateLeaderboard(rankedLeaderboard, ctx.network!.getPlayerName() ?? '');
+            }
+
+            applyUnlockedEffects(ctx);
+
+            if (ctx.dailyRewardsManager && ctx.dailyRewardsManager.canClaim()) {
+                const timeout = setTimeout(() => {
+                    ctx.setDailyRewardTimeout(null);
+                    ctx.ui?.showDailyRewardPopup(ctx.dailyRewardsManager!, ctx.progressionManager);
+                }, 1000);
+                ctx.setDailyRewardTimeout(timeout);
+            }
+
+            ctx.ui.addChatMessage('', 'Demo mode — playing offline!', true);
+            ctx.animate();
+
+        } catch (demoError) {
+            ctx.setIsRunning(false);
+            console.error('Failed to start demo mode:', demoError);
+            const errorMessage = demoError instanceof Error ? demoError.message : 'Unknown error';
+            ctx.ui!.showConnectionStatus('failed', { reason: errorMessage });
+        }
     }
 }
 

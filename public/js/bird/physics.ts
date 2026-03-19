@@ -138,7 +138,7 @@ function updateAutoRotation(
 
     // Gradual rotation toward target - slower for more cinematic turns
     // Lower smoothing = more gradual turn
-    const turnSmoothFactor = 0.06;  // How much of the angle difference to cover per frame
+    const turnSmoothFactor = config.turnResponsiveness ?? 0.06;  // How much of the angle difference to cover per frame
     const maxTurn = config.turnSpeed * 0.8 * movement.magnitude;  // Cap turn rate
 
     // Apply rotation
@@ -257,8 +257,8 @@ function updateFlyingVertical(
 ): void {
     state.isFlapping = input.up > 0;
 
-    // Apply gravity for flying birds
-    state.velocity.y -= GRAVITY;
+    // Apply gravity for flying birds (species can tweak weight/floatiness)
+    state.velocity.y -= GRAVITY * (config.gravityScale ?? 1);
 
     if (input.up > 0) {
         state.velocity.y += config.liftPower * input.up;

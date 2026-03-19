@@ -33,7 +33,10 @@ export interface BirdParts {
 }
 
 // Create initial animation state
-export function createAnimationState(birdType: string): AnimationState {
+export function createAnimationState(birdType: string, config?: BirdTypeConfig): AnimationState {
+    const baseWingSpeed = config?.wingBeatSpeed ??
+        (birdType === 'hummingbird' ? 1.5 : 0.25);
+
     return {
         wingAngle: 0,
         tailAngle: 0,
@@ -42,8 +45,8 @@ export function createAnimationState(birdType: string): AnimationState {
         visualRotation: 0,
         visualTiltX: 0,
         visualTiltZ: 0,
-        baseWingSpeed: birdType === 'hummingbird' ? 1.5 : 0.25,
-        currentWingSpeed: birdType === 'hummingbird' ? 1.5 : 0.25,
+        baseWingSpeed,
+        currentWingSpeed: baseWingSpeed,
         headBaseY: 0,
         headBaseZ: 0
     };
@@ -131,10 +134,12 @@ function updateWingAnimation(
         anim.wingAngle += anim.currentWingSpeed;
 
         let wingAmplitude = 0.6;
+        const flapWingAmplitude = config.flapWingAmplitude ?? 0.8;
+        const glideWingAmplitude = config.glideWingAmplitude ?? 0.15;
         if (physics.isGliding && physics.horizontalSpeed > 0.3) {
-            wingAmplitude = 0.15;
+            wingAmplitude = glideWingAmplitude;
         } else if (physics.isFlapping) {
-            wingAmplitude = 0.8;
+            wingAmplitude = flapWingAmplitude;
         }
 
         const wingFlap = Math.sin(anim.wingAngle) * wingAmplitude;

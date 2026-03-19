@@ -2,6 +2,7 @@
   "name": "birdgame",
   "version": "1.0.0",
   "description": "Browser 3D bird flying game with multiplayer",
+  "license": "MIT",
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",

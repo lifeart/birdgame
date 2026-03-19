@@ -33,9 +33,14 @@ export interface BirdTypeConfig {
     cheekColor?: number;
     canFly?: boolean;
     jumpPower?: number;
+    gravityScale?: number;
+    turnResponsiveness?: number;
+    wingBeatSpeed?: number;
+    glideWingAmplitude?: number;
+    flapWingAmplitude?: number;
 }
 
-export type BirdTypeName = 'sparrow' | 'pigeon' | 'crow' | 'hummingbird' | 'penguin';
+export type BirdTypeName = 'sparrow' | 'pigeon' | 'crow' | 'hummingbird' | 'penguin' | 'owl' | 'goose';
 
 export const BIRD_TYPES: Record<BirdTypeName, BirdTypeConfig> = {
     sparrow: {
@@ -163,6 +168,64 @@ export const BIRD_TYPES: Record<BirdTypeName, BirdTypeConfig> = {
         legColor: 0xFF6B00,
         mantleColor: 0x0a0a0a,
         cheekColor: 0xFFD700
+    },
+    owl: {
+        name: 'Owl',
+        baseMaxSpeed: 0.31,
+        maxSpeed: 0.92,
+        baseAcceleration: 0.018,
+        maxAcceleration: 0.052,
+        turnSpeed: 0.065,
+        size: 2.9,
+        liftPower: 0.15,
+        glideEfficiency: 0.18,
+        gravityScale: 0.9,
+        turnResponsiveness: 0.055,
+        wingBeatSpeed: 0.18,
+        glideWingAmplitude: 0.06,
+        flapWingAmplitude: 0.58,
+        bodyColor: 0x7A6A58,
+        headColor: 0x6B5A4A,
+        bellyColor: 0xD8C7A6,
+        breastColor: 0xC9B28F,
+        wingColor: 0x5A4A3B,
+        wingPatternColor: 0x3F342B,
+        wingCovertsColor: 0x725E4B,
+        tailColor: 0x4A3B2F,
+        beakColor: 0xC9A44F,
+        eyeColor: 0xF4C95D,
+        irisColor: 0xF4A300,
+        legColor: 0xB78A4A,
+        mantleColor: 0x5C4C3D
+    },
+    goose: {
+        name: 'Goose',
+        baseMaxSpeed: 0.34,
+        maxSpeed: 1.0,
+        baseAcceleration: 0.016,
+        maxAcceleration: 0.048,
+        turnSpeed: 0.032,
+        size: 3.2,
+        liftPower: 0.12,
+        glideEfficiency: 0.48,
+        gravityScale: 1.1,
+        turnResponsiveness: 0.04,
+        wingBeatSpeed: 0.16,
+        glideWingAmplitude: 0.1,
+        flapWingAmplitude: 0.62,
+        bodyColor: 0xDCDCD4,
+        headColor: 0x324734,
+        bellyColor: 0xF4F3ED,
+        breastColor: 0xE8E6DE,
+        wingColor: 0xC8C7BD,
+        wingPatternColor: 0xB8B7AC,
+        wingCovertsColor: 0xAFAE9F,
+        tailColor: 0x9A998B,
+        beakColor: 0xF2A33A,
+        eyeColor: 0x1a1a1a,
+        irisColor: 0x4A2F1A,
+        legColor: 0xE8892D,
+        mantleColor: 0xC0BFB4
     }
 };
 

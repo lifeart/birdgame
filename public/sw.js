@@ -14,7 +14,8 @@ const STATIC_ASSETS = [
     '/icons/icon-152.png',
     '/icons/icon-192.png',
     '/icons/icon-384.png',
-    '/icons/icon-512.png'
+    '/icons/icon-512.png',
+    '/favicon.ico'
 ];
 
 const ALL_ASSETS = STATIC_ASSETS;

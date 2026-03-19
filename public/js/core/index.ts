@@ -38,6 +38,7 @@ export {
     type ConnectionFailedData,
     type NetworkEventMap
 } from './network.ts';
+export { DemoNetworkManager } from './demo-network.ts';
 export {
     distanceSquared,
     distance,

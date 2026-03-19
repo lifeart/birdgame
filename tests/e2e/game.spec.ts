@@ -17,9 +17,9 @@ test.describe('BirdGame Main Menu', () => {
         await expect(nameInput).toHaveAttribute('maxlength', '20');
     });
 
-    test('has 5 bird options', async ({ page }) => {
+    test('has 7 bird options', async ({ page }) => {
         const birdOptions = page.locator('.bird-option');
-        await expect(birdOptions).toHaveCount(5);
+        await expect(birdOptions).toHaveCount(7);
     });
 
     test('sparrow is selected by default', async ({ page }) => {
@@ -217,7 +217,7 @@ test.describe('Bird Selection', () => {
     test('all bird types are selectable', async ({ page }) => {
         await page.goto('/');
 
-        const birds = ['sparrow', 'pigeon', 'crow', 'hummingbird', 'penguin'];
+        const birds = ['sparrow', 'pigeon', 'crow', 'hummingbird', 'penguin', 'owl', 'goose'];
 
         for (const bird of birds) {
             const option = page.locator(`.bird-option[data-bird="${bird}"]`);
@@ -234,6 +234,8 @@ test.describe('Bird Selection', () => {
         await expect(page.locator('.bird-option[data-bird="crow"] span').first()).toHaveText('Crow');
         await expect(page.locator('.bird-option[data-bird="hummingbird"] span').first()).toHaveText('Hummingbird');
         await expect(page.locator('.bird-option[data-bird="penguin"] span').first()).toHaveText('Penguin');
+        await expect(page.locator('.bird-option[data-bird="owl"] span').first()).toHaveText('Owl');
+        await expect(page.locator('.bird-option[data-bird="goose"] span').first()).toHaveText('Goose');
     });
 });
 

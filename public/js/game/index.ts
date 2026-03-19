@@ -5,7 +5,7 @@ import { Bird } from '../bird/index.ts';
 import { WormManager, FlyManager } from '../entities/index.ts';
 import { WeatherSystem, LOCATIONS } from '../environment/index.ts';
 import { EffectsManager, AmbientParticleSystem } from '../effects/index.ts';
-import { NetworkManager, AudioManager, ProgressionManager, DailyRewardsManager, type LevelReward, type ClaimedReward } from '../core/index.ts';
+import { NetworkManager, DemoNetworkManager, AudioManager, ProgressionManager, DailyRewardsManager, type LevelReward, type ClaimedReward } from '../core/index.ts';
 import { UIManager, TouchControls, CAMERA_MODES, type CameraMode, type GameInterface } from '../ui/index.ts';
 
 import {
@@ -71,7 +71,7 @@ export class Game {
     private effectsManager: EffectsManager | null = null;
     private ambientParticles: AmbientParticleSystem | null = null;
 
-    private network: NetworkManager | null = null;
+    private network: NetworkManager | DemoNetworkManager | null = null;
     // Public for GameInterface (TouchControls)
     public ui: UIManager | null = null;
 
@@ -431,6 +431,14 @@ export class Game {
         setupNetworkCallbacks(proxyCtx);
     }
 
+    private setNetwork(network: NetworkManager | DemoNetworkManager): void {
+        if (this.network) {
+            this.network.removeAllCallbacks();
+        }
+        this.network = network;
+        this.initNetworkCallbacks();
+    }
+
     async startGame(playerName: string, birdType: string, location: string): Promise<void> {
         const ctx = this.createLifecycleContext();
         await startGameLifecycle(ctx, playerName, birdType, location);
@@ -485,7 +493,8 @@ export class Game {
             setLoadingTimeout: (timeout: ReturnType<typeof setTimeout> | null) => { this.loadingTimeout = timeout; },
             updatePlayerList: () => this.updatePlayerList(),
             resetCamera: () => this.resetCamera(),
-            animate: () => this.animateLoop()
+            animate: () => this.animateLoop(),
+            setNetwork: (network: NetworkManager | DemoNetworkManager) => this.setNetwork(network)
         };
     }
 

@@ -45,7 +45,7 @@ export class Bird {
         this.physics = createPhysicsState(this.config);
 
         // Initialize animation state using module
-        this.anim = createAnimationState(type);
+        this.anim = createAnimationState(type, this.config);
 
         // Speed progression (based on worms eaten)
         this.wormCount = 0;
@@ -394,6 +394,12 @@ export class Bird {
                 break;
             case 'penguin':
                 this.createPenguinHead(s, cfg);
+                break;
+            case 'owl':
+                this.createOwlHead(s, cfg);
+                break;
+            case 'goose':
+                this.createGooseHead(s, cfg);
                 break;
             default:
                 this.createSparrowHead(s, cfg);
@@ -1208,6 +1214,195 @@ export class Bird {
             const hl = new THREE.Mesh(hlGeom, hlMat);
             hl.position.set(side * s * 0.095, eyeY + s * 0.01, eyeZ + s * 0.035);
             this.group.add(hl);
+        });
+    }
+
+    // ============================================
+    // OWL HEAD - Large face disk, forward eyes, ear tufts
+    // ============================================
+    createOwlHead(s: number, cfg: BirdTypeConfig): void {
+        const headMat = new THREE.MeshPhongMaterial({ color: cfg.headColor, shininess: 45 });
+
+        this.headBaseY = s * 0.24;
+        this.headBaseZ = s * 0.48;
+
+        const headGeom = new THREE.SphereGeometry(s * 0.3, 32, 24);
+        headGeom.scale(1.05, 1, 1);
+        this.head = new THREE.Mesh(headGeom, headMat);
+        this.head.position.set(0, this.headBaseY, this.headBaseZ);
+        this.head.castShadow = true;
+        this.group.add(this.head);
+
+        // Characteristic owl face disk.
+        const faceDiskGeom = new THREE.CylinderGeometry(s * 0.22, s * 0.24, s * 0.06, 28);
+        faceDiskGeom.rotateX(Math.PI / 2);
+        const faceDiskMat = new THREE.MeshPhongMaterial({ color: cfg.bellyColor, shininess: 35 });
+        const faceDisk = new THREE.Mesh(faceDiskGeom, faceDiskMat);
+        faceDisk.position.set(0, s * 0.2, s * 0.64);
+        this.group.add(faceDisk);
+
+        // Brow ridge gives a focused expression.
+        const browGeom = new THREE.SphereGeometry(s * 0.08, 14, 10);
+        browGeom.scale(1.8, 0.6, 1);
+        [-1, 1].forEach(side => {
+            const brow = new THREE.Mesh(browGeom, headMat);
+            brow.position.set(side * s * 0.11, s * 0.32, s * 0.62);
+            this.group.add(brow);
+        });
+
+        this.createOwlEarTufts(s, cfg);
+        this.createOwlBeak(s, cfg);
+        this.createOwlEyes(s, cfg);
+    }
+
+    createOwlEarTufts(s: number, cfg: BirdTypeConfig): void {
+        const tuftMat = new THREE.MeshPhongMaterial({ color: cfg.mantleColor, shininess: 30 });
+        const tuftGeom = new THREE.ConeGeometry(s * 0.05, s * 0.16, 8);
+
+        [-1, 1].forEach(side => {
+            const tuft = new THREE.Mesh(tuftGeom, tuftMat);
+            tuft.position.set(side * s * 0.14, s * 0.48, s * 0.47);
+            tuft.rotation.z = -side * 0.2;
+            tuft.rotation.x = -0.25;
+            this.group.add(tuft);
+        });
+    }
+
+    createOwlBeak(s: number, cfg: BirdTypeConfig): void {
+        const beakMat = new THREE.MeshPhongMaterial({ color: cfg.beakColor, shininess: 70 });
+
+        const upperLen = s * 0.13;
+        const upperGeom = new THREE.ConeGeometry(s * 0.045, upperLen, 10, 4);
+        upperGeom.rotateX(Math.PI / 2);
+        this.upperBeak = new THREE.Mesh(upperGeom, beakMat);
+        this.upperBeak.position.set(0, s * 0.15, s * 0.73);
+        this.group.add(this.upperBeak);
+
+        const lowerLen = s * 0.1;
+        const lowerGeom = new THREE.ConeGeometry(s * 0.035, lowerLen, 8, 3);
+        lowerGeom.rotateX(Math.PI / 2);
+        this.lowerBeak = new THREE.Mesh(lowerGeom, beakMat);
+        this.lowerBeak.position.set(0, s * 0.1, s * 0.71);
+        this.group.add(this.lowerBeak);
+    }
+
+    createOwlEyes(s: number, cfg: BirdTypeConfig): void {
+        const eyeGeom = new THREE.SphereGeometry(s * 0.08, 20, 16);
+        const eyeMat = new THREE.MeshPhongMaterial({ color: cfg.eyeColor, shininess: 100 });
+        const irisGeom = new THREE.SphereGeometry(s * 0.06, 18, 14);
+        const irisMat = new THREE.MeshPhongMaterial({ color: cfg.irisColor, shininess: 95 });
+        const pupilGeom = new THREE.SphereGeometry(s * 0.032, 14, 10);
+        const pupilMat = new THREE.MeshPhongMaterial({ color: 0x111111, shininess: 90 });
+        const hlGeom = new THREE.SphereGeometry(s * 0.012, 8, 8);
+        const hlMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+        [-1, 1].forEach(side => {
+            const eye = new THREE.Mesh(eyeGeom, eyeMat);
+            eye.position.set(side * s * 0.12, s * 0.23, s * 0.7);
+            this.group.add(eye);
+
+            const iris = new THREE.Mesh(irisGeom, irisMat);
+            iris.position.set(side * s * 0.125, s * 0.235, s * 0.74);
+            this.group.add(iris);
+
+            const pupil = new THREE.Mesh(pupilGeom, pupilMat);
+            pupil.position.set(side * s * 0.13, s * 0.24, s * 0.76);
+            this.group.add(pupil);
+
+            const hl = new THREE.Mesh(hlGeom, hlMat);
+            hl.position.set(side * s * 0.133, s * 0.26, s * 0.78);
+            this.group.add(hl);
+        });
+    }
+
+    // ============================================
+    // GOOSE HEAD - Longer neck and broad beak
+    // ============================================
+    createGooseHead(s: number, cfg: BirdTypeConfig): void {
+        const headMat = new THREE.MeshPhongMaterial({ color: cfg.headColor, shininess: 40 });
+
+        this.headBaseY = s * 0.3;
+        this.headBaseZ = s * 0.62;
+
+        this.createGooseNeck(s, cfg);
+
+        const headGeom = new THREE.SphereGeometry(s * 0.24, 30, 22);
+        headGeom.scale(0.9, 0.95, 1.15);
+        this.head = new THREE.Mesh(headGeom, headMat);
+        this.head.position.set(0, this.headBaseY, this.headBaseZ);
+        this.head.castShadow = true;
+        this.group.add(this.head);
+
+        const foreheadGeom = new THREE.SphereGeometry(s * 0.12, 14, 10);
+        foreheadGeom.scale(1, 0.7, 1);
+        const forehead = new THREE.Mesh(foreheadGeom, headMat);
+        forehead.position.set(0, s * 0.39, s * 0.66);
+        this.group.add(forehead);
+
+        this.createGooseBeak(s, cfg);
+        this.createGooseEyes(s, cfg);
+    }
+
+    createGooseNeck(s: number, cfg: BirdTypeConfig): void {
+        const neckMat = new THREE.MeshPhongMaterial({ color: cfg.breastColor, shininess: 30 });
+        const lowerNeckGeom = new THREE.CylinderGeometry(s * 0.13, s * 0.2, s * 0.34, 16, 4);
+        const lowerNeck = new THREE.Mesh(lowerNeckGeom, neckMat);
+        lowerNeck.position.set(0, s * 0.05, s * 0.4);
+        lowerNeck.rotation.x = Math.PI * 0.35;
+        this.group.add(lowerNeck);
+
+        const upperNeckGeom = new THREE.CylinderGeometry(s * 0.11, s * 0.13, s * 0.22, 14, 4);
+        const upperNeck = new THREE.Mesh(upperNeckGeom, neckMat);
+        upperNeck.position.set(0, s * 0.2, s * 0.56);
+        upperNeck.rotation.x = Math.PI * 0.28;
+        this.group.add(upperNeck);
+    }
+
+    createGooseBeak(s: number, cfg: BirdTypeConfig): void {
+        const beakMat = new THREE.MeshPhongMaterial({ color: cfg.beakColor, shininess: 65 });
+        const darkTipMat = new THREE.MeshPhongMaterial({ color: 0x1f1f1f, shininess: 60 });
+
+        const upperLen = s * 0.3;
+        const upperGeom = new THREE.CylinderGeometry(s * 0.05, s * 0.075, upperLen, 10, 2);
+        upperGeom.rotateX(Math.PI / 2);
+        this.upperBeak = new THREE.Mesh(upperGeom, beakMat);
+        this.upperBeak.position.set(0, s * 0.28, s * 0.8);
+        this.group.add(this.upperBeak);
+
+        const lowerLen = s * 0.24;
+        const lowerGeom = new THREE.CylinderGeometry(s * 0.042, s * 0.06, lowerLen, 10, 2);
+        lowerGeom.rotateX(Math.PI / 2);
+        this.lowerBeak = new THREE.Mesh(lowerGeom, beakMat);
+        this.lowerBeak.position.set(0, s * 0.22, s * 0.76);
+        this.group.add(this.lowerBeak);
+
+        const tipGeom = new THREE.SphereGeometry(s * 0.028, 10, 8);
+        const tip = new THREE.Mesh(tipGeom, darkTipMat);
+        tip.position.set(0, s * 0.27, s * 0.95);
+        tip.scale.set(1, 0.7, 1.2);
+        this.group.add(tip);
+    }
+
+    createGooseEyes(s: number, cfg: BirdTypeConfig): void {
+        const eyeGeom = new THREE.SphereGeometry(s * 0.045, 16, 12);
+        const eyeMat = new THREE.MeshPhongMaterial({ color: 0xfafafa, shininess: 90 });
+        const irisGeom = new THREE.SphereGeometry(s * 0.03, 12, 10);
+        const irisMat = new THREE.MeshPhongMaterial({ color: cfg.irisColor, shininess: 80 });
+        const pupilGeom = new THREE.SphereGeometry(s * 0.018, 10, 8);
+        const pupilMat = new THREE.MeshPhongMaterial({ color: 0x000000, shininess: 90 });
+
+        [-1, 1].forEach(side => {
+            const eye = new THREE.Mesh(eyeGeom, eyeMat);
+            eye.position.set(side * s * 0.11, s * 0.31, s * 0.68);
+            this.group.add(eye);
+
+            const iris = new THREE.Mesh(irisGeom, irisMat);
+            iris.position.set(side * s * 0.115, s * 0.315, s * 0.705);
+            this.group.add(iris);
+
+            const pupil = new THREE.Mesh(pupilGeom, pupilMat);
+            pupil.position.set(side * s * 0.118, s * 0.32, s * 0.72);
+            this.group.add(pupil);
         });
     }
 

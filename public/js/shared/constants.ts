@@ -5,7 +5,7 @@ export const LOCATIONS = ['city', 'park', 'village', 'beach', 'mountain'] as con
 export type LocationName = typeof LOCATIONS[number];
 
 // Valid bird types
-export const VALID_BIRDS = ['sparrow', 'pigeon', 'crow', 'hummingbird', 'penguin'] as const;
+export const VALID_BIRDS = ['sparrow', 'pigeon', 'crow', 'hummingbird', 'penguin', 'owl', 'goose'] as const;
 export type BirdName = typeof VALID_BIRDS[number];
 
 // Entity spawn settings

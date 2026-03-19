@@ -18,8 +18,8 @@ describe('shared constants', () => {
     });
 
     describe('VALID_BIRDS', () => {
-        it('has 5 bird types', () => {
-            expect(constants.VALID_BIRDS).toHaveLength(5);
+        it('has 7 bird types', () => {
+            expect(constants.VALID_BIRDS).toHaveLength(7);
         });
 
         it('contains expected bird types', () => {
@@ -28,6 +28,8 @@ describe('shared constants', () => {
             expect(constants.VALID_BIRDS).toContain('crow');
             expect(constants.VALID_BIRDS).toContain('hummingbird');
             expect(constants.VALID_BIRDS).toContain('penguin');
+            expect(constants.VALID_BIRDS).toContain('owl');
+            expect(constants.VALID_BIRDS).toContain('goose');
         });
     });
 

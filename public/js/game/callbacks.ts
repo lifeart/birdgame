@@ -1,5 +1,6 @@
 // Network callbacks module - handles all network event subscriptions
 import type { NetworkManager } from '../core/network.ts';
+import type { DemoNetworkManager } from '../core/demo-network.ts';
 import type { AudioManager } from '../core/audio.ts';
 import type { ProgressionManager } from '../core/progression.ts';
 import type { UIManager } from '../ui/manager.ts';
@@ -16,7 +17,7 @@ export interface NetworkCallbackContext {
     goldenWormAlertShown: boolean;
 
     // Managers
-    network: NetworkManager | null;
+    network: NetworkManager | DemoNetworkManager | null;
     ui: UIManager | null;
     audioManager: AudioManager;
     progressionManager: ProgressionManager;

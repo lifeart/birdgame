@@ -14,12 +14,14 @@
     <link rel="manifest" href="/manifest.json">
 
     <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
     <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192.png">
 
     <!-- Favicons -->
-    <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-96.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-72.png">
+    <link rel="icon" href="/favicon.ico" sizes="48x48">
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-72.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
 
     <title>BirdGame - 3D Bird Flying Game</title>
     <link rel="stylesheet" href="css/style.css">
@@ -41,29 +43,113 @@
             <h3>Choose Your Bird:</h3>
             <div class="bird-select">
                 <div class="bird-option selected" data-bird="sparrow">
-                    <div class="bird-preview sparrow-preview"></div>
+                    <div class="bird-preview sparrow-preview" aria-hidden="true">
+                        <svg viewBox="0 0 64 64" role="presentation">
+                            <path d="M14 42C19 28 31 22 46 23L51 28L49 41L39 48H23Z" fill="#8B6914"/>
+                            <path d="M17 39C21 30 29 25 39 27L34 38L22 42Z" fill="#654321"/>
+                            <path d="M37 30L45 26L52 31L44 35Z" fill="#D2B48C"/>
+                            <path d="M15 40L8 35L15 33Z" fill="#3D2914"/>
+                            <path d="M49 31L56 29L51 35Z" fill="#2F2F2F"/>
+                            <circle cx="43" cy="30" r="2.2" fill="#1A1A1A"/>
+                            <path d="M25 49L23 57M33 49L31 57" stroke="#CD853F" stroke-width="2.2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
                     <span>Sparrow</span>
                     <small>Fast & Agile</small>
                 </div>
                 <div class="bird-option" data-bird="pigeon">
-                    <div class="bird-preview pigeon-preview"></div>
+                    <div class="bird-preview pigeon-preview" aria-hidden="true">
+                        <svg viewBox="0 0 64 64" role="presentation">
+                            <path d="M13 41C18 27 31 20 47 22L52 29L50 42L39 48H22Z" fill="#696969"/>
+                            <path d="M20 39C23 31 31 27 39 28L35 39L24 43Z" fill="#505050"/>
+                            <path d="M34 25C39 22 45 22 49 27L45 33L36 31Z" fill="#4A6741"/>
+                            <path d="M34 31C39 28 45 29 48 35L41 38L34 35Z" fill="#9370DB"/>
+                            <path d="M13 40L7 36L14 33Z" fill="#404040"/>
+                            <path d="M50 31L57 30L52 36Z" fill="#2F2F2F"/>
+                            <circle cx="44" cy="29" r="2.1" fill="#FF4500"/>
+                            <path d="M25 49L23 57M33 49L31 57" stroke="#DC143C" stroke-width="2.2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
                     <span>Pigeon</span>
                     <small>Balanced</small>
                 </div>
                 <div class="bird-option" data-bird="crow">
-                    <div class="bird-preview crow-preview"></div>
+                    <div class="bird-preview crow-preview" aria-hidden="true">
+                        <svg viewBox="0 0 64 64" role="presentation">
+                            <path d="M12 42C18 28 29 20 46 21L53 29L49 43L38 49H22Z" fill="#111111"/>
+                            <path d="M20 40C22 32 28 25 37 24L34 38L23 42Z" fill="#050505"/>
+                            <path d="M10 39L4 32L14 31Z" fill="#050505"/>
+                            <path d="M45 28L58 25L52 34L46 33Z" fill="#1A1A1A"/>
+                            <path d="M33 22L38 14L42 21Z" fill="#202020"/>
+                            <circle cx="42" cy="29" r="1.9" fill="#3A3A3A"/>
+                            <path d="M23 49L21 57M31 49L29 57" stroke="#1A1A1A" stroke-width="2.1" stroke-linecap="round"/>
+                        </svg>
+                    </div>
                     <span>Crow</span>
                     <small>Strong & Steady</small>
                 </div>
                 <div class="bird-option" data-bird="hummingbird">
-                    <div class="bird-preview hummingbird-preview"></div>
+                    <div class="bird-preview hummingbird-preview" aria-hidden="true">
+                        <svg viewBox="0 0 64 64" role="presentation">
+                            <path d="M25 37C29 28 37 23 47 25L50 32L45 39L34 42Z" fill="#228B22"/>
+                            <path d="M26 33C18 24 20 12 31 9L37 18L33 30Z" fill="#87CEEB" opacity="0.8"/>
+                            <path d="M29 36C21 32 15 27 13 20L23 20L32 29Z" fill="#00CED1" opacity="0.7"/>
+                            <path d="M44 30L61 24L46 33Z" fill="#1A1A1A"/>
+                            <path d="M21 38L15 43L24 42Z" fill="#2E8B57"/>
+                            <path d="M34 34C39 31 43 31 45 35L39 38L33 36Z" fill="#FF1493"/>
+                            <circle cx="43" cy="30" r="1.7" fill="#1A1A1A"/>
+                            <path d="M29 43L27 49M34 43L32 49" stroke="#2F4F4F" stroke-width="1.8" stroke-linecap="round"/>
+                        </svg>
+                    </div>
                     <span>Hummingbird</span>
                     <small>Ultra Fast</small>
                 </div>
                 <div class="bird-option" data-bird="penguin">
-                    <div class="bird-preview penguin-preview"></div>
+                    <div class="bird-preview penguin-preview" aria-hidden="true">
+                        <svg viewBox="0 0 64 64" role="presentation">
+                            <path d="M21 12C15 18 13 27 14 37C15 49 22 56 32 56C42 56 49 49 50 37C51 27 49 18 43 12Z" fill="#111111"/>
+                            <path d="M25 18C22 22 20 28 20 36C20 44 25 51 32 51C39 51 44 44 44 36C44 28 42 22 39 18Z" fill="#FFFAFA"/>
+                            <path d="M22 22C24 19 27 17 31 17C25 23 22 29 22 37Z" fill="#FFD700"/>
+                            <path d="M42 22C40 19 37 17 33 17C39 23 42 29 42 37Z" fill="#FFD700"/>
+                            <path d="M29 30H35L32 35Z" fill="#FF6B00"/>
+                            <circle cx="28" cy="27" r="2" fill="#1A1A1A"/>
+                            <circle cx="36" cy="27" r="2" fill="#1A1A1A"/>
+                            <path d="M26 56L22 60M38 56L42 60" stroke="#FF6B00" stroke-width="3" stroke-linecap="round"/>
+                        </svg>
+                    </div>
                     <span>Penguin</span>
                     <small>Can't Fly!</small>
+                </div>
+                <div class="bird-option" data-bird="owl">
+                    <div class="bird-preview owl-preview" aria-hidden="true">
+                        <svg viewBox="0 0 64 64" role="presentation">
+                            <path d="M19 18L25 11L29 19M45 18L39 11L35 19" fill="#6B5A4A"/>
+                            <path d="M16 43C16 27 23 16 32 16C41 16 48 27 48 43C48 50 41 55 32 55C23 55 16 50 16 43Z" fill="#7A6A58"/>
+                            <path d="M22 29C22 23 26 20 32 20C38 20 42 23 42 29V43H22Z" fill="#D8C7A6"/>
+                            <circle cx="26" cy="31" r="6" fill="#F4C95D"/>
+                            <circle cx="38" cy="31" r="6" fill="#F4C95D"/>
+                            <circle cx="26" cy="31" r="2.5" fill="#1A1A1A"/>
+                            <circle cx="38" cy="31" r="2.5" fill="#1A1A1A"/>
+                            <path d="M29 38H35L32 42Z" fill="#C9A44F"/>
+                            <path d="M22 43L17 48M42 43L47 48" stroke="#5A4A3B" stroke-width="3" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <span>Owl</span>
+                    <small>Silent Hunter</small>
+                </div>
+                <div class="bird-option" data-bird="goose">
+                    <div class="bird-preview goose-preview" aria-hidden="true">
+                        <svg viewBox="0 0 64 64" role="presentation">
+                            <path d="M27 16C30 10 36 8 42 10C46 11 48 15 47 19C45 25 37 28 35 35H28C30 29 33 23 27 16Z" fill="#324734"/>
+                            <path d="M18 43C18 30 26 24 38 24C47 24 53 30 53 38C53 47 46 52 35 52C25 52 18 49 18 43Z" fill="#DCDCD4"/>
+                            <path d="M21 42C22 33 28 28 36 28C42 28 47 31 49 37C43 40 35 41 21 42Z" fill="#C8C7BD"/>
+                            <path d="M44 17L56 18L49 23L42 21Z" fill="#F2A33A"/>
+                            <circle cx="42" cy="17" r="1.8" fill="#1A1A1A"/>
+                            <path d="M24 52L22 59M34 52L32 59" stroke="#E8892D" stroke-width="2.2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <span>Goose</span>
+                    <small>Heavy Cruiser</small>
                 </div>
             </div>
         </div>
@@ -71,22 +157,81 @@
             <h3>Choose Location:</h3>
             <div class="location-select">
                 <div class="location-option selected" data-location="city">
+                    <div class="location-preview city-location-preview" aria-hidden="true">
+                        <svg viewBox="0 0 72 44" role="presentation">
+                            <rect x="0" y="0" width="72" height="44" rx="8" fill="#D4E5ED"/>
+                            <rect x="7" y="21" width="13" height="17" rx="2" fill="#8B9598"/>
+                            <rect x="22" y="14" width="14" height="24" rx="2" fill="#9BA8AB"/>
+                            <rect x="38" y="9" width="13" height="29" rx="2" fill="#B5C4C7"/>
+                            <rect x="53" y="17" width="11" height="21" rx="2" fill="#A89F95"/>
+                            <path d="M0 38H72" stroke="#6B7280" stroke-width="4"/>
+                            <path d="M27 19H31M27 24H31M43 14H47M43 19H47M43 24H47M57 22H60" stroke="#F8FAFC" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                    </div>
                     <span>City</span>
                     <small>Tall buildings, urban life</small>
                 </div>
                 <div class="location-option" data-location="park">
+                    <div class="location-preview park-location-preview" aria-hidden="true">
+                        <svg viewBox="0 0 72 44" role="presentation">
+                            <rect x="0" y="0" width="72" height="44" rx="8" fill="#E0F6FF"/>
+                            <path d="M0 31C10 27 18 28 28 31C38 34 47 34 72 29V44H0Z" fill="#5A8F5A"/>
+                            <circle cx="17" cy="15" r="9" fill="#3E7A3C"/>
+                            <rect x="15.5" y="20" width="3" height="11" rx="1.5" fill="#6B4F2A"/>
+                            <circle cx="48" cy="24" r="7" fill="#D6F0FF" stroke="#7BC8FF" stroke-width="2"/>
+                            <path d="M48 11L46 20H50Z" fill="#7BC8FF"/>
+                            <path d="M44 25H52" stroke="#7BC8FF" stroke-width="1.8" stroke-linecap="round"/>
+                        </svg>
+                    </div>
                     <span>Park</span>
                     <small>Trees, fountain, nature</small>
                 </div>
                 <div class="location-option" data-location="village">
+                    <div class="location-preview village-location-preview" aria-hidden="true">
+                        <svg viewBox="0 0 72 44" role="presentation">
+                            <rect x="0" y="0" width="72" height="44" rx="8" fill="#D9F2E4"/>
+                            <path d="M0 32C10 29 20 30 31 32C42 34 55 35 72 31V44H0Z" fill="#76A96F"/>
+                            <path d="M15 24L27 15L39 24V35H15Z" fill="#F5E7D3"/>
+                            <path d="M13 24L27 12L41 24" stroke="#9A5C34" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                            <rect x="23" y="28" width="7" height="7" rx="1" fill="#A86B43"/>
+                            <rect x="46" y="20" width="3" height="15" rx="1.5" fill="#C8B58A"/>
+                            <path d="M43 24L47.5 16L52 24L47.5 28Z" fill="#EFE7D5"/>
+                            <circle cx="57" cy="16" r="6" fill="#4E8C46"/>
+                            <rect x="55.5" y="21" width="3" height="10" rx="1.5" fill="#6B4F2A"/>
+                        </svg>
+                    </div>
                     <span>Village</span>
                     <small>Cozy houses, lots of green</small>
                 </div>
                 <div class="location-option" data-location="beach">
+                    <div class="location-preview beach-location-preview" aria-hidden="true">
+                        <svg viewBox="0 0 72 44" role="presentation">
+                            <rect x="0" y="0" width="72" height="44" rx="8" fill="#C9F0FF"/>
+                            <circle cx="55" cy="11" r="6" fill="#FFD36B"/>
+                            <path d="M0 25C8 22 14 23 20 25C28 28 36 28 44 25C53 21 61 21 72 25V34H0Z" fill="#3AA8C5"/>
+                            <path d="M0 34C14 31 22 33 31 35C41 37 54 38 72 34V44H0Z" fill="#F3D7A1"/>
+                            <path d="M18 34L21 17" stroke="#8B5E3C" stroke-width="2.5" stroke-linecap="round"/>
+                            <path d="M22 18C27 15 31 16 34 20C30 21 26 23 22 18Z" fill="#3D8C57"/>
+                            <path d="M20 21C24 18 28 19 31 23C27 24 23 26 20 21Z" fill="#2F6F45"/>
+                            <path d="M41 29C45 27 49 28 54 31" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
                     <span>Beach</span>
                     <small>Ocean, palm trees, sunshine</small>
                 </div>
                 <div class="location-option" data-location="mountain">
+                    <div class="location-preview mountain-location-preview" aria-hidden="true">
+                        <svg viewBox="0 0 72 44" role="presentation">
+                            <rect x="0" y="0" width="72" height="44" rx="8" fill="#D8ECFF"/>
+                            <path d="M0 32L14 20L26 32Z" fill="#6E8AA3"/>
+                            <path d="M16 32L34 11L52 32Z" fill="#5A7388"/>
+                            <path d="M38 32L53 16L72 32Z" fill="#809CB0"/>
+                            <path d="M28 17L34 11L40 17" fill="#F4F8FB"/>
+                            <path d="M47 21L53 16L59 21" fill="#F4F8FB"/>
+                            <path d="M31 20L33 32H37L39 20Z" fill="#7DD3FC"/>
+                            <path d="M0 32C12 31 21 34 31 36C42 38 57 38 72 34V44H0Z" fill="#658A5B"/>
+                        </svg>
+                    </div>
                     <span>Mountain</span>
                     <small>Peaks, cabin, waterfalls</small>
                 </div>
