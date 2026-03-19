@@ -373,7 +373,10 @@ export class Game {
                 this.startGameWithData(ctx, gameData, data.bird, data.location);
             }).catch((err) => {
                 console.error('Failed to create room:', err);
+                this.isRunning = false;
+                this.ui?.showConnectionStatus('failed', { reason: err.message });
                 this.ui?.addChatMessage('', `Failed to create room: ${err.message}`, true);
+                this.ui?.showMenu();
             });
         });
 
@@ -391,8 +394,10 @@ export class Game {
                 this.startGameWithData(ctx, gameData, data.bird, data.location);
             }).catch((err) => {
                 console.error('Failed to join room:', err);
+                this.isRunning = false;
                 this.ui?.showConnectionStatus('failed', { reason: err.message });
                 this.ui?.addChatMessage('', `Failed to join room: ${err.message}`, true);
+                this.ui?.showMenu();
             });
         });
     }

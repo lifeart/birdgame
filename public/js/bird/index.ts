@@ -1860,6 +1860,16 @@ export class Bird {
     }
 
     remove(): void {
+        this.group.traverse((child) => {
+            if (child instanceof THREE.Mesh) {
+                child.geometry?.dispose();
+                if (Array.isArray(child.material)) {
+                    child.material.forEach(m => m.dispose());
+                } else {
+                    child.material?.dispose();
+                }
+            }
+        });
         this.scene.remove(this.group);
     }
 }

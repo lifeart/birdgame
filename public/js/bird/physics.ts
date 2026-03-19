@@ -317,9 +317,7 @@ export function updatePhysics(
 ): void {
     // Clamp and normalize delta to 60fps baseline
     // dt=1.0 at 60fps, dt=0.5 at 120fps, dt=2.0 at 30fps
-    let safeDelta = (delta !== undefined && delta > 0) ? delta : 1 / 60;
-    safeDelta = Math.min(Math.max(safeDelta, 0), 0.1);
-    if (safeDelta <= 0) safeDelta = 1 / 60;
+    const safeDelta = (delta !== undefined && delta > 0) ? Math.min(delta, 0.1) : 1 / 60;
     const dt = safeDelta * 60;
 
     const normalizedInput = normalizeInput(input);
