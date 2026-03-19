@@ -195,7 +195,12 @@ export class Game {
             console.warn('Failed to initialize ambient particles:', error);
             this.ambientParticles = null;
         }
-        this.network = new NetworkManager();
+        // Use DemoNetworkManager on static hosts (GitHub Pages) where WebSocket will never work
+        const isStaticHost = window.location.protocol === 'file:' ||
+            window.location.hostname.endsWith('.github.io') ||
+            window.location.hostname.endsWith('.pages.dev') ||
+            window.location.hostname.endsWith('.netlify.app');
+        this.network = isStaticHost ? new DemoNetworkManager() : new NetworkManager();
         this.ui = new UIManager();
 
         // Setup progression callbacks
