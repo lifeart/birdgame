@@ -1,467 +1,353 @@
-# План улучшений Birdgame
+# BirdGame Improvement Plan
 
-## Концепция остаётся
-
-Birdgame — это **3D multiplayer flight simulator**, где игрок управляет птицей, летает по красивым локациям, собирает ресурсы и соревнуется с другими игроками.
-
-Цель улучшений: сделать игру более **эмоциональной**, **красивой**, **залипательной** и добавить **долгосрочную мотивацию** возвращаться.
+Based on comprehensive game design and architecture reviews. Reviewed by tech lead and QA. Organized into 5 phases with 22 items, prioritized by impact.
 
 ---
 
-## Фаза 1: Визуальные улучшения (Вайб и атмосфера)
+## Phase 1: Critical Fixes
 
-### 1.1 Улучшение стилистики
+### 1.1 Frame-rate-dependent physics
+**Problem:** `updatePhysics()` in `physics.ts` applies velocity, gravity, air resistance per-frame without delta time. 144Hz players are 2.4x faster than 60Hz.
 
-**Текущее:** Базовые 3D модели с flat shading
-**Цель:** Тёплый, уютный, магический мир
+**Note:** `delta` is already computed in `update.ts` (line 238) and passed to `Bird.update()`, but `Bird.update()` ignores it (`_delta`). The plumbing exists — just need to thread it through.
 
-```
-Задачи:
-├── Смягчить цветовую палитру (пастельные тона)
-├── Добавить ambient particles (перья, пылинки, светлячки)
-├── Улучшить небо (градиенты, облака-объёмы)
-├── Добавить post-processing эффекты:
-│   ├── Bloom (свечение)
-│   ├── Soft shadows
-│   └── Color grading
-├── "Дышащий" мир — лёгкое покачивание деревьев, травы
-└── Улучшить модели птиц (более милые, округлые формы)
-```
+**Files:**
+- `public/js/bird/physics.ts` — Add `delta` param to `updatePhysics()`. Multiply all velocity additions by `delta * 60` (normalize to 60fps baseline). Convert `AIR_RESISTANCE` to `Math.pow(AIR_RESISTANCE, delta * 60)`. Change `position.add(velocity)` to `position.addScaledVector(velocity, delta * 60)`.
+- `public/js/bird/index.ts` — Pass `delta` from `update()` into `updatePhysics()`.
+- `tests/unit/bird-physics.test.ts` — Update existing test (currently calls `updatePhysics()` without delta). Add FPS-independence tests.
 
-**Файлы:**
-- `public/js/world.js` — particles, улучшенные материалы
-- `public/js/weather.js` — улучшенное небо
-- `public/js/bird.js` — визуальные улучшения моделей
-- `public/css/style.css` — пастельная тема UI
+**Critical: Delta must be clamped.** Tab-switching can produce delta > 1s, which would teleport birds through walls. Clamp to `Math.min(delta, 0.1)` inside `updatePhysics`. Guard against delta <= 0 (use 1/60 fallback).
 
-### 1.2 Улучшение звука
+**Acceptance criteria:**
+- AC1: At delta=1/60, behavior is numerically identical to current frame-locked behavior (within 0.001 tolerance)
+- AC2: 60fps (60 calls at delta=1/60) and 144fps (144 calls at delta=1/144) converge to same position within 5% over 1 second
+- AC3: Delta > 0.1 is clamped. Delta <= 0 uses 1/60 fallback
+- AC4: All existing E2E tests pass
 
-**Текущее:** Базовые синтезированные звуки
-**Цель:** Атмосферный soundscape
+**Risk: HIGH.** All balance numbers were tuned to frame-coupled behavior. Requires extensive playtesting at different frame rates after landing.
 
-```
-Задачи:
-├── Ambient звуки для каждой локации:
-│   ├── City — отдалённый шум города, машины
-│   ├── Park — птицы поют, шелест листьев
-│   └── Village — петухи, деревенские звуки
-├── Музыкальные петли (спокойные, ненавязчивые)
-├── Улучшить звуки взаимодействия:
-│   ├── Сбор червяка — приятный "чирик"
-│   ├── Сбор мухи — "щёлк" + бонусный звук
-│   └── Level up — победная мелодия
-└── Звуки полёта зависят от скорости
-```
+**Depends on:** Nothing | **Complexity:** M-L
 
-**Файл:** `public/js/audio.js`
+### 1.2 `setNetwork()` memory leak
+**Problem:** `game/index.ts` `setNetwork()` calls `removeAllCallbacks()` but NOT `disconnect()`. Old manager's intervals keep running.
 
-### 1.3 Эффекты погоды (расширение)
+**Files:**
+- `public/js/game/index.ts` — Add `this.network.disconnect()` before `removeAllCallbacks()` in `setNetwork()`.
 
-**Текущее:** Rain, fog, aurora
-**Добавить:**
+**Edge cases:** `disconnect()` on already-disconnected manager must not throw. `disconnect()` on WebSocket in CONNECTING state must handle gracefully.
 
-```
-├── Снег (зимой)
-├── Листопад (осенью)
-├── Радуга после дождя (уже есть, улучшить)
-├── Shooting stars (ночью)
-└── Morning mist (утренняя дымка)
-```
+**Acceptance criteria:**
+- AC1: `setNetwork(new)` calls `disconnect()` on previous manager
+- AC2: No intervals from old manager continue after swap
+- AC3: Double-disconnect does not throw
 
-**Файл:** `public/js/weather.js`
+**Depends on:** Nothing | **Complexity:** S
+
+### 1.3 WebRTC `conn.off('data', undefined)` bug
+**Problem:** `webrtc-network.ts` line ~597 passes `undefined` to `conn.off()` — no-op. Old welcome handler stays attached.
+
+**Files:**
+- `public/js/core/webrtc-network.ts` — Store initial data handler in a named variable, remove it by reference after welcome.
+
+**Acceptance criteria:**
+- AC1: Initial handler stored in named `const`, removed via `conn.off('data', handler)`
+- AC2: No duplicate welcome processing if second welcome message arrives
+- AC3: Late messages on closed connection do not throw
+
+**Depends on:** Nothing | **Complexity:** S
 
 ---
 
-## Фаза 2: Система прогрессии
+## Phase 2: Code Quality
 
-### 2.1 Уровни птицы
+### 2.1 Extract shared game init logic
+**Problem:** Game initialization code is duplicated 3 times: `lifecycle.ts` try block, catch/demo block, and `game/index.ts` `startGameWithData`.
 
-**Текущее:** Скорость растёт от количества червей
-**Новое:** Полноценная система уровней
+**Files:**
+- `public/js/game/lifecycle.ts` — Extract `initGameWithData(ctx, gameData, birdType, location)`. Both try/catch paths call it.
+- `public/js/game/index.ts` — Replace `startGameWithData` body with call to extracted function.
 
-```
-Система:
-├── XP за каждого собранного червя/муху
-├── Уровни 1-50
-├── Каждый уровень даёт:
-│   ├── +2% к максимальной скорости
-│   ├── +1% к манёвренности
-│   └── Визуальные награды (см. ниже)
-├── Отображение уровня над птицей
-└── Сохранение прогресса
+**Depends on:** Nothing | **Complexity:** M
 
-Награды за уровни:
-├── Lv 5: Trail effect (след за птицей)
-├── Lv 10: Aura (свечение вокруг)
-├── Lv 15: Particle effect (искры при полёте)
-├── Lv 20: Crown (корона)
-├── Lv 30: Wings glow (светящиеся крылья)
-└── Lv 50: Legendary skin
-```
+### 2.2 Extract shared network base class
+**Problem:** Event system (on/off/triggerCallback) copy-pasted in all 3 managers. Entity generation duplicated between Demo and WebRTC (~300 lines total).
 
-**Новый файл:** `public/js/progression.js`
+**Files:**
+- **Create** `public/js/core/network-base.ts` — Base class with callbacks storage, event methods, common properties/getters.
+- **Create** `public/js/core/entity-host.ts` — Shared entity hosting: generateWorm/Fly, respawn loops, golden worm, leaderboard.
+- `public/js/core/network.ts` — Extend base class.
+- `public/js/core/demo-network.ts` — Extend base, use entity-host.
+- `public/js/core/webrtc-network.ts` — Extend base, use entity-host.
+- `public/js/core/index.ts` — Update `AnyNetworkManager` to use base class.
 
-### 2.2 Достижения (Achievements)
+**Depends on:** Nothing | **Complexity:** L
 
-```
-Примеры достижений:
-├── "First Flight" — пролететь 100 метров
-├── "Worm Hunter" — собрать 100 червей
-├── "Fly Catcher" — собрать 50 мух
-├── "Speed Demon" — достичь максимальной скорости
-├── "Explorer" — посетить все локации
-├── "Social Bird" — отправить 10 сообщений в чат
-├── "Night Owl" — играть ночью (в игре)
-├── "Rain Dancer" — летать во время дождя
-├── "Top of the World" — достичь максимальной высоты
-└── "Marathon" — провести 1 час в игре
+### 2.3 Unify shared constants
+**Problem:** `shared/constants.js` (CJS) and `public/js/shared/constants.ts` (ESM) are manual copies. Server has extra fields the client lacks.
 
-Награды:
-├── XP бонус
-├── Уникальные визуальные эффекты
-└── Titles (отображаются под именем)
-```
+**Files:**
+- Keep `shared/constants.js` as source of truth.
+- `public/js/shared/constants.ts` — Generate from JS or import via build step.
+- `build.js` — Add constants sync step.
 
-**Новый файл:** `public/js/achievements.js`
+**Depends on:** Nothing | **Complexity:** S-M
 
-### 2.3 Статистика игрока
+### 2.4 Replace `as` casting with type guards
+**Problem:** `network.ts` `handleMessage` has 30+ `as` casts. Validation methods return boolean instead of narrowing types.
 
-```
-Отслеживание:
-├── Общее расстояние пройдено
-├── Максимальная скорость
-├── Всего червей собрано
-├── Всего мух собрано
-├── Время в воздухе
-├── Любимая локация
-└── Количество сессий
+**Files:**
+- `public/js/core/network.ts` — Convert `validatePlayerMoved`, `validateWormCollected`, etc. to TypeScript type guards (`message is SomeType`).
 
-UI: Отдельный экран "Profile" со статистикой
-```
+**Depends on:** Nothing | **Complexity:** M
 
 ---
 
-## Фаза 3: Кастомизация птиц
+## Phase 3: Gameplay Improvements
 
-### 3.1 Скины и цвета
+### 3.1 Nerf Hummingbird
+**Problem:** Highest speed (1.8 vs 1.2), accel, turn, lift, AND smallest hitbox. Dominates all other birds.
 
-**Текущее:** 5 птиц с фиксированными цветами
-**Новое:** Система кастомизации
+**Files:**
+- `public/js/bird/types.ts` — maxSpeed: 1.8→1.4, baseMaxSpeed: 0.6→0.45, baseAcceleration: 0.05→0.035, maxAcceleration: 0.15→0.10, liftPower: 0.25→0.20. Keep high turnSpeed as signature trait.
 
-```
-Опции кастомизации:
-├── Цвет тела (палитра из 20 цветов)
-├── Цвет крыльев
-├── Цвет клюва
-├── Паттерны (полоски, пятна)
-├── Аксессуары:
-│   ├── Шляпки
-│   ├── Очки
-│   ├── Шарфики
-│   └── Банты
-└── Trail effects (след при полёте)
+**Depends on:** 1.1 | **Complexity:** S
 
-Разблокировка:
-├── Базовые цвета — бесплатно
-├── Редкие цвета — за XP/достижения
-├── Аксессуары — за достижения
-└── Премиум — специальные наборы
-```
+### 3.2 Buff flies
+**Problem:** Only 2pt for harder aerial collection. Only 3-5 per location.
 
-**Новый файл:** `public/js/customization.js`
+**Files:**
+- `public/js/shared/constants.ts` — FLY_POINTS: 2→4, FLIES_PER_LOCATION_MIN: 3→8, FLIES_PER_LOCATION_MAX: 5→12, MIN_FLIES_BEFORE_RESPAWN: 3→6.
+- `shared/constants.js` — Mirror changes.
 
-### 3.2 Имена и персонализация
+**Depends on:** 2.3 ideally | **Complexity:** S
 
-```
-Функционал:
-├── Возможность дать имя своей птице
-├── Имя отображается над птицей
-├── История птиц (все ваши птицы)
-└── Favorites (любимые скины)
-```
+### 3.3 Improve glide mechanic
+**Problem:** Glide lift formula yields low values at low-to-mid speeds. At max speed it works (crow: 0.0108 vs gravity 0.004), but at half speed it's marginal. Gliding should feel rewarding across more of the speed range.
 
----
+**Review finding: original plan was too aggressive.** Tripling multiplier AND halving gravity would make birds fly forever (crow at max speed = 16x gravity). Use conservative approach instead.
 
-## Фаза 4: Улучшение геймплея
+**Files:**
+- `public/js/bird/physics.ts` — Double glide lift multiplier (0.02→0.04, NOT 0.06). Reduce gravity by 25% during glide (NOT 50%). This makes glide meaningful at mid-speed without enabling infinite flight.
+- `public/js/bird/types.ts` — Crow glideEfficiency: 0.6→0.7, Goose: 0.48→0.55. Small buffs, not dramatic.
 
-### 4.1 Новые типы ресурсов
+**Depends on:** 1.1 | **Complexity:** S-M (needs playtesting to verify feel)
 
-**Текущее:** Черви (1 очко), мухи (2 очка)
-**Добавить:**
+### 3.4 Bird unique passives
+**Problem:** All birds play identically aside from stats.
 
-```
-├── Golden Worm (редкий, 10 очков)
-│   └── Появляется 1 раз в 5 минут, светится
-├── Butterfly (бабочка, 5 очков)
-│   └── Красивая, летает высоко
-├── Berry (ягода, 3 очка)
-│   └── Растёт на кустах
-└── Shiny Seed (сияющее семечко, XP boost)
-    └── Удваивает XP на 30 секунд
-```
+**Passives (revised after review):**
+- Crow: `scavenger_sense` — worms pulse/glow when within 30 units
+- Penguin: `ground_specialist` — 2x ground worm points (ground = position.y < 3)
+- Owl: `night_vision` — enhanced visibility in rain/fog weather
+- Goose: `honk` — H key emits honk sound (cosmetic only in v1, no scatter — scatter requires P2P sync which is too complex)
+- Sparrow: `agile_collector` — 15% larger collection radius
+- Pigeon: `urban_navigator` — 10% speed boost in city location
+- Hummingbird: `quick_dash` — double-tap W for brief speed burst with cooldown (NOT hover — hover would undo the 3.1 nerf by enabling infinite air time)
 
-**Файлы:** `public/js/worms.js`, новые файлы для ресурсов
+**Review findings addressed:**
+- Hummingbird hover passive removed — would make nerf (3.1) irrelevant
+- Goose honk simplified to cosmetic — network sync for scatter effect is XL complexity, defer to v2
+- Penguin "ground" defined explicitly as y < 3
 
-### 4.2 Power-ups
+**Files:**
+- `public/js/bird/types.ts` — Add `passive` field to config.
+- **Create** `public/js/bird/passives.ts` — Passive effect logic.
+- `public/js/game/update.ts` — Apply passive effects.
+- `public/js/entities/worms.ts`, `flies.ts` — Configurable collection radius.
 
-```
-Временные бонусы:
-├── Speed Boost — +50% скорости на 10 сек
-├── Magnet — притягивает ресурсы в радиусе
-├── Double Points — x2 очки на 30 сек
-├── Ghost — проходить сквозь препятствия
-└── Star (неуязвимость, светится)
+**Depends on:** 1.1, 3.1, 3.3 | **Complexity:** L (7 passives, each needs testing and balancing)
 
-Появляются случайно на карте (парящие, светящиеся)
-```
+### 3.5 Micro-rewards at every level
+**Problem:** 40 of 50 levels give nothing.
 
-**Новый файл:** `public/js/powerups.js`
+**Files:**
+- `public/js/core/progression.ts` — Expand `levelRewards` to all 50 levels. Empty levels get XP boosts, titles, color variants, temporary buffs.
 
-### 4.3 Миссии и челленджи
+**Depends on:** Nothing | **Complexity:** M
 
-```
-Daily Challenges:
-├── "Собрать 50 червей"
-├── "Поймать 10 мух"
-├── "Пролететь 500 метров"
-├── "Провести 5 минут в Park"
-└── "Достичь высоты 50 метров"
+### 3.6 Combo/streak scoring system
+**Problem:** No incentive for rapid consecutive collection.
 
-Weekly Challenges:
-├── "Собрать 500 ресурсов"
-├── "Посетить все локации"
-└── "Войти в топ-10 лидерборда"
+**Design decision: Golden worms are EXCLUDED from combo multiplier.** A 3x golden worm (150pts) would be wildly unbalanced. Golden worms increment the streak counter but their own points are always 1x. Combo resets on location change and disconnect.
 
-Награды: XP, косметика, titles
-```
+**Files:**
+- **Create** `public/js/core/combo.ts` — ComboManager: 5s window, multipliers 1x→1.5x→2x→3x at streaks 1/3/5/8+. `registerCollection(isGolden)` — golden increments streak but returns 1x multiplier.
+- `public/js/game/callbacks.ts` — Apply combo multiplier in wormCollected/flyCollected (skip for golden).
+- `public/js/ui/manager.ts` — Combo HUD display.
+- `public/css/style.css` — Combo styling.
 
-**Новый файл:** `public/js/challenges.js`
+**Edge cases:** Two worms in same frame = 2 streak increments. Window boundary (4.999s vs 5.001s) — use `>=` comparison.
 
----
+**Depends on:** Nothing | **Complexity:** M
 
-## Фаза 5: Социальные улучшения
+### 3.7 Achievements system
 
-### 5.1 Улучшение мультиплеера
+**Files:**
+- **Create** `public/js/core/achievements.ts` — AchievementManager with ~15 achievements (First Worm, Fly Catcher, Golden Touch, Speed Demon, Explorer, Social Bird, etc.).
+- `public/js/game/callbacks.ts` — Hook achievement checks into events.
+- `public/js/ui/manager.ts` — Achievement popup UI.
 
-**Текущее:** Видим других игроков, чат
-**Добавить:**
+**Depends on:** Nothing | **Complexity:** M
 
-```
-├── Эмоции/реакции:
-│   ├── Wave (помахать)
-│   ├── Dance (танец)
-│   ├── Flip (кувырок)
-│   └── Chirp (чирикнуть)
-├── Follow mode — следовать за другом
-├── Race mode — гонки между игроками
-└── Party system — группы для совместной игры
-```
+### 3.8 Golden Egg daily reward
+**Problem:** Day 7 `special: 'golden_egg'` does nothing.
 
-### 5.2 Улучшение лидерборда
+**Files:**
+- `public/js/core/rewards.ts` — On day-7 claim, unlock exclusive golden trail for 24h (or permanent after 4 eggs).
+- `public/js/ui/manager.ts` — Golden egg animation in daily reward popup.
 
-**Текущее:** Топ-10 по очкам
-**Добавить:**
-
-```
-├── Daily leaderboard (обнуляется каждый день)
-├── Weekly leaderboard
-├── All-time leaderboard
-├── Leaderboard по локациям
-├── Leaderboard по типам птиц
-└── Friends leaderboard (если добавим друзей)
-```
-
-### 5.3 Профили игроков
-
-```
-Функционал:
-├── Просмотр профиля другого игрока (клик)
-├── Статистика, достижения, уровень
-├── Добавление в друзья
-└── Сравнение статистики
-```
+**Depends on:** 3.5 | **Complexity:** S-M
 
 ---
 
-## Фаза 6: Новые локации
+## Phase 4: Network & Security
 
-### 6.1 Улучшение существующих
+### 4.1 Server-side position validation
+**Problem:** Server accepts any coordinates blindly.
 
-```
-City:
-├── Добавить ночные огни
-├── Движущиеся машины (декоративно)
-└── Голуби на крышах (декоративно)
+**Files:**
+- `server/index.js` — In `handlePosition`: validate finite numbers, clamp to world bounds, anti-teleport rate limit.
+- `server/validation.js` — Add `validatePosition()`.
 
-Park:
-├── Пруд с утками
-├── Люди на скамейках (декоративно)
-└── Качели, карусели
+**Depends on:** Nothing | **Complexity:** M
 
-Village:
-├── Ферма с животными
-├── Мельница
-└── Речка
-```
+### 4.2 Proximity check for collectible claims
+**Problem:** Any client can claim any worm from across the map.
 
-### 6.2 Новые локации
+**Files:**
+- `server/index.js` — In worm/fly collected handlers: lookup entity position, compute distance to player, reject if > 10 units.
+- `server/entities/index.js` — Expose entity position lookup by ID.
 
-```
-├── Beach (пляж)
-│   ├── Песок, вода, пальмы
-│   ├── Волны
-│   └── Чайки (декоративно)
-├── Mountain (горы)
-│   ├── Снежные вершины
-│   ├── Водопады
-│   └── Орлы
-├── Night City (ночной город)
-│   ├── Неоновые огни
-│   ├── Небоскрёбы
-│   └── Особая атмосфера
-└── Fantasy Island (фэнтези)
-    ├── Парящие острова
-    ├── Магические кристаллы
-    └── Разблокируется на высоком уровне
-```
+**Depends on:** 4.1 | **Complexity:** M
+
+### 4.3 WebRTC reconnection
+**Problem:** Host disconnect silently drops clients.
+
+**Files:**
+- `public/js/core/webrtc-network.ts` — Add reconnection logic: 3 retries with exponential backoff, trigger reconnecting/connectionFailed callbacks, "Host left" message.
+
+**Depends on:** 2.2 ideally | **Complexity:** M-L
 
 ---
 
-## Фаза 7: Retention (Удержание)
+## Phase 5: Performance & Polish
 
-### 7.1 Daily Login Rewards
+### 5.1 Shadow map optimization for mobile
 
-```
-День 1: 50 XP
-День 2: 100 XP
-День 3: Случайный цвет
-День 4: 200 XP
-День 5: Power-up pack
-День 6: 300 XP
-День 7: Редкий аксессуар
+**Files:**
+- `public/js/game/index.ts` — Detect mobile, use `PCFShadowMap` instead of `PCFSoftShadowMap`, reduce shadow resolution to 1024.
 
-После 7 дней — цикл повторяется с лучшими наградами
-```
+**Depends on:** Nothing | **Complexity:** S
 
-### 7.2 Сезонные события
+### 5.2 Set pixel ratio cap
 
-```
-├── Halloween — тыквы вместо червей, ночная атмосфера
-├── Christmas — снег, подарки, ёлки
-├── Easter — яйца вместо ресурсов
-├── Summer — пляжная тема
-└── Каждый ивент = уникальная косметика
-```
+**Files:**
+- `public/js/game/index.ts` — Add `renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))`.
 
-### 7.3 Battle Pass (опционально)
+**Depends on:** Nothing | **Complexity:** S
 
-```
-Free tier + Premium tier
-├── Уровни 1-50
-├── Прогресс через XP
-├── Free rewards каждые 5 уровней
-├── Premium rewards каждый уровень
-└── Уникальные скины, эффекты, titles
-```
+### 5.3 Animate other players' birds
+**Problem:** Other players' birds get empty input — no wing flapping or movement animation.
 
----
+**Files:**
+- `public/js/game/update.ts` — Infer synthetic input from position deltas.
+- `public/js/game/types.ts` — Add `lastPosition` to `OtherPlayer`.
 
-## Фаза 8: Технические улучшения
+**Depends on:** Nothing | **Complexity:** M
 
-### 8.1 Сохранение прогресса
+### 5.4 Replace Proxy context pattern
+**Problem:** Game creates giant context objects wrapped in Proxy — fragile and hard to debug.
 
-**Текущее:** Частичное сохранение на сервере (24 часа)
-**Улучшить:**
+**Files:**
+- `public/js/game/index.ts` — Remove `createLifecycleContext()`, `createUpdateContext()`, Proxy usage. Define `GameState` interface, pass `this`.
+- `public/js/game/lifecycle.ts`, `update.ts`, `callbacks.ts` — Accept `GameState` instead of context objects.
 
-```
-├── localStorage для offline
-├── Синхронизация с сервером
-├── Account system (опционально)
-│   ├── Login with Google
-│   └── Login with Apple
-└── Cross-device progress
-```
+**Risk: HIGH.** Touches every module boundary. A single missed property causes runtime crash.
 
-### 8.2 PWA Support
+**Depends on:** Nothing | **Complexity:** L-XL
 
-```
-├── Service Worker для offline игры
-├── manifest.json для установки
-├── Push notifications (daily rewards, events)
-└── App-like experience
-```
+### 5.5 GPU memory leak on player disconnect (NEW — from review)
+**Problem:** When a player disconnects, `playerLeft` handler deletes from the Map but may not fully dispose Three.js Bird objects (geometry, materials). This leaks GPU memory over time.
 
-### 8.3 Оптимизация
+**Files:**
+- `public/js/game/callbacks.ts` — In `playerLeft` handler, verify `player.bird.remove()` disposes all geometry and materials.
+- `public/js/bird/index.ts` — Ensure `remove()` calls `geometry.dispose()` and `material.dispose()` on all meshes.
 
-```
-├── LOD (Level of Detail) для дальних объектов
-├── Object pooling для частиц
-├── Texture atlases
-└── Lazy loading для локаций
-```
+**Depends on:** Nothing | **Complexity:** S
 
 ---
 
-## Приоритеты реализации
+## Implementation Order
 
-### High Priority (1-2 недели)
-1. [ ] Система уровней и XP
-2. [ ] Визуальные награды (trails, auras)
-3. [ ] Daily login rewards
-4. [ ] Улучшение визуала (пастельные тона, particles)
-5. [ ] Golden Worm (редкий ресурс)
-
-### Medium Priority (2-3 недели)
-6. [ ] Достижения (10 базовых)
-7. [ ] Power-ups (3 типа)
-8. [ ] Кастомизация цветов птицы
-9. [ ] Daily challenges
-10. [ ] Улучшение звука (ambient)
-
-### Low Priority (3-4 недели)
-11. [ ] Эмоции/реакции для мультиплеера
-12. [ ] Новые локации (Beach, Mountain)
-13. [ ] Сезонные события
-14. [ ] Battle Pass
-15. [ ] Account system
-
----
-
-## Структура новых файлов
-
-```
-/public/js
-  ├── progression.js   — уровни, XP
-  ├── achievements.js  — достижения
-  ├── challenges.js    — daily/weekly challenges
-  ├── customization.js — скины, цвета
-  ├── powerups.js      — временные бонусы
-  ├── rewards.js       — daily login, rewards
-  └── events.js        — сезонные события
-```
+| # | Item | Phase | Size | Risk | Notes |
+|---|------|-------|------|------|-------|
+| 1 | 1.1 Delta-time physics | P1 | M-L | HIGH | Everything depends on this |
+| 2 | 1.2 setNetwork leak | P1 | S | LOW | Quick win |
+| 3 | 1.3 conn.off bug | P1 | S | LOW | Quick win |
+| 4 | 5.5 GPU memory leak | P5 | S | LOW | Quick win |
+| 5 | 5.1 Shadow map mobile | P5 | S | LOW | Quick win |
+| 6 | 5.2 Pixel ratio | P5 | S | LOW | Quick win |
+| 7 | 2.3 Constants dedup | P2 | S-M | LOW | Foundation for gameplay changes |
+| 8 | 2.1 Init logic dedup | P2 | M | MED | Reduces maintenance burden |
+| 9 | 3.1 Nerf hummingbird | P3 | S | MED | Balance fix (depends on 1.1) |
+| 10 | 3.2 Buff flies | P3 | S | LOW | Balance fix |
+| 11 | 3.3 Improve glide | P3 | S-M | MED | Needs playtesting (depends on 1.1) |
+| 12 | 5.3 Other player anim | P5 | M-L | MED | Multiplayer visual quality |
+| 13 | 2.2 Network base class | P2 | L | MED-HIGH | Major dedup |
+| 14 | 2.4 Type narrowing | P2 | M | LOW | Code quality |
+| 15 | 3.6 Combo system | P3 | M | LOW | High-impact feature |
+| 16 | 3.5 Micro-rewards | P3 | M | LOW | Retention |
+| 17 | 4.1 Position validation | P4 | M | LOW | Security |
+| 18 | 4.2 Proximity check | P4 | M | LOW | Security |
+| 19 | 3.4 Bird passives | P3 | L | MED | Major feature (7 passives) |
+| 20 | 3.7 Achievements | P3 | M | LOW | Retention |
+| 21 | 3.8 Golden egg | P3 | S-M | LOW | Complete existing feature |
+| 22 | 4.3 WebRTC reconnect | P4 | M-L | MED | Robustness |
+| 23 | 5.4 Proxy removal | P5 | L-XL | HIGH | Best during quiet period |
 
 ---
 
-## Метрики успеха
+## Testing Strategy (from QA review)
 
-| Метрика | Текущее | Цель |
-|---------|---------|------|
-| Session Length | ~3 мин | 5-7 мин |
-| Return Rate (D1) | ? | 40% |
-| Return Rate (D7) | ? | 15% |
-| Daily Sessions | ? | 3+ |
-| Chat Activity | Low | Medium |
+### Required test infrastructure
+- **Delta-time test helper:** `simulatePhysics(config, input, durationSec, fps) => PhysicsState` utility
+- **Server test environment:** Add `// @vitest-environment node` for server tests (Phase 4)
+- **PeerJS mock:** `tests/mocks/peerjs.ts` for WebRTC tests (Phase 1.3, Phase 4.3)
+- **Timer mocks:** Use `vi.useFakeTimers()` for combo system (already established in rewards tests)
 
----
+### Phase gates
 
-## Заключение
+**Phase 1 → Phase 2:**
+- All 260 existing unit tests pass
+- All E2E tests pass
+- New delta-time unit tests prove FPS-independence (AC2)
+- Manual: play at 60fps and 144fps, movement feels identical
+- Manual: tab-switch for 5s, bird does not teleport
 
-Эти улучшения сохраняют **core gameplay** (летать птицей, собирать ресурсы) и добавляют:
+**Phase 2 → Phase 3:**
+- All tests pass after refactors (no behavioral changes)
+- Network tests updated for base class
+- Constants build step verified
 
-1. **Эмоциональную привязку** — кастомизация, прогрессия, достижения
-2. **Долгосрочную мотивацию** — уровни, challenges, rewards
-3. **Красоту** — визуальные улучшения, эффекты, звук
-4. **Социальность** — реакции, улучшенные лидерборды
-5. **Разнообразие** — новые ресурсы, power-ups, локации
+**Phase 3 → Phase 4:**
+- New unit tests for combo, achievements, micro-rewards pass
+- E2E: collect worms, combo HUD appears
+- Manual: each bird type for 5 min across 2 locations
+- Manual: daily reward day 7 golden egg does something
 
-Начинать рекомендую с **High Priority** — это даст максимальный impact при минимальных усилиях.
+**Phase 4 → Phase 5:**
+- Server validation tests pass (Node environment)
+- Manual: devtools fake position messages rejected
+- Manual: disconnect host in WebRTC, client sees reconnection
+
+**Phase 5 complete:**
+- Mobile FPS measured before/after shadow/pixel changes
+- Other players' birds animate in multiplayer
+- Full E2E suite passes after Proxy removal
+
+### Regression risk ranking
+1. **1.1 Delta-time** — HIGHEST (changes all movement feel)
+2. **5.4 Proxy removal** — HIGH (touches every module boundary)
+3. **2.2 Network base class** — MEDIUM-HIGH (3 managers simultaneously)
+4. **3.1+3.3 Balance changes** — MEDIUM (depend on 1.1 being correct)
+5. **2.1 Init dedup** — MEDIUM (demo fallback path is critical)
