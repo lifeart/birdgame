@@ -591,7 +591,8 @@ canvas {
     /* Prevent iOS zoom on input focus */
     .menu-section input,
     #chatInput,
-    #playerName {
+    #playerName,
+    .join-room input {
         font-size: 16px !important;
     }
 
@@ -606,6 +607,17 @@ canvas {
         min-width: 200px;
     }
 
+    .multiplayer-btn {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    .copy-btn {
+        min-height: 44px;
+        min-width: 44px;
+        padding: 10px 16px;
+    }
+
     /* Active states for touch */
     .bird-option:active {
         transform: scale(0.98);
@@ -617,6 +629,14 @@ canvas {
 
     .start-btn:active {
         transform: scale(0.95);
+    }
+
+    .multiplayer-btn:active {
+        transform: scale(0.95);
+    }
+
+    .copy-btn:active {
+        background: rgba(255, 255, 255, 0.35);
     }
 }
 
@@ -711,6 +731,56 @@ canvas {
         font-size: 18px;
         width: 100%;
         max-width: 280px;
+    }
+
+    .multiplayer-section {
+        padding-top: 12px;
+        margin-top: 8px;
+    }
+
+    .multiplayer-options {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .multiplayer-btn {
+        padding: 12px 24px;
+        font-size: 14px;
+        width: 100%;
+        max-width: 280px;
+    }
+
+    .join-room {
+        width: 100%;
+        max-width: 280px;
+        justify-content: center;
+    }
+
+    .join-room input {
+        flex: 1;
+        min-width: 0;
+        width: auto;
+        padding: 12px;
+    }
+
+    .join-room .multiplayer-btn {
+        flex-shrink: 0;
+        width: auto;
+    }
+
+    .room-info {
+        flex-wrap: wrap;
+        font-size: 14px;
+        padding: 10px 12px;
+    }
+
+    .room-info strong {
+        font-size: 18px;
+    }
+
+    .copy-btn {
+        padding: 8px 14px;
+        font-size: 12px;
     }
 
     /* Game UI */
@@ -904,6 +974,30 @@ canvas {
         font-size: 16px;
     }
 
+    .multiplayer-section h3 {
+        font-size: 12px;
+    }
+
+    .multiplayer-btn {
+        padding: 11px 20px;
+        font-size: 13px;
+    }
+
+    .join-room input {
+        padding: 11px 10px;
+        font-size: 13px;
+    }
+
+    .room-info {
+        font-size: 13px;
+        gap: 8px;
+    }
+
+    .room-info strong {
+        font-size: 16px;
+        letter-spacing: 2px;
+    }
+
     #score {
         font-size: 16px;
         padding: 6px 12px;
@@ -1004,6 +1098,47 @@ canvas {
         padding: 10px 30px;
         font-size: 14px;
         margin-top: 5px;
+    }
+
+    .multiplayer-section {
+        padding-top: 8px;
+        margin-top: 5px;
+    }
+
+    .multiplayer-section h3 {
+        font-size: 11px;
+        margin-bottom: 5px;
+    }
+
+    .multiplayer-options {
+        flex-direction: row;
+        gap: 6px;
+    }
+
+    .multiplayer-btn {
+        padding: 8px 14px;
+        font-size: 12px;
+    }
+
+    .join-room input {
+        padding: 8px;
+        width: 80px;
+        font-size: 12px;
+    }
+
+    .room-info {
+        margin-top: 6px;
+        padding: 6px 10px;
+        font-size: 12px;
+    }
+
+    .room-info strong {
+        font-size: 14px;
+    }
+
+    .copy-btn {
+        padding: 4px 10px;
+        font-size: 11px;
     }
 
     .menu-section input {
@@ -1129,6 +1264,28 @@ canvas {
     .start-btn {
         font-size: 14px;
         padding: 10px 20px;
+    }
+
+    .multiplayer-btn {
+        padding: 10px 16px;
+        font-size: 12px;
+    }
+
+    .join-room input {
+        width: 70px;
+        padding: 10px 8px;
+        font-size: 12px;
+        letter-spacing: 1px;
+    }
+
+    .room-info {
+        flex-direction: column;
+        gap: 6px;
+        font-size: 12px;
+    }
+
+    .room-info strong {
+        font-size: 14px;
     }
 }
 
