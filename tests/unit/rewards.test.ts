@@ -35,6 +35,7 @@ describe('DailyRewardsManager', () => {
         it('day 1 gives 50 XP', () => {
             const info = manager.getTodayRewardInfo();
             expect(info.day).toBe(1);
+            expect(info.type).toBe('xp');
             expect(info.amount).toBe(50);
         });
 
@@ -170,12 +171,22 @@ describe('DailyRewardsManager', () => {
         });
 
         it('resets streak after missing a day', () => {
-            manager.currentStreak = 5;
-            manager.lastClaimDate = new Date(Date.now() - 48 * 60 * 60 * 1000); // 2 days ago
+            // Simulate a streak that should be broken
+            // Set lastClaimDate to 2 days ago via localStorage
+            const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
+            localStorage.setItem('birdgame_daily_rewards', JSON.stringify({
+                currentStreak: 5,
+                lastClaimDate: twoDaysAgo.toISOString(),
+                currentDayInCycle: 6,
+                totalDaysClaimed: 5
+            }));
 
             // Re-initialize to trigger checkStreak
             const newManager = new DailyRewardsManager();
-            // The streak would be reset on checkStreak
+
+            expect(newManager.currentStreak).toBe(0);
+            expect(newManager.currentDayInCycle).toBe(1);
+            expect(newManager.hasClaimedToday).toBe(false);
         });
     });
 

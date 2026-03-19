@@ -14,9 +14,9 @@ describe('ProgressionManager', () => {
             expect(manager.currentXP).toBe(0);
         });
 
-        it('has empty unlocked rewards initially (except level 1)', () => {
-            // Level 1 reward is auto-added on load if not present
-            expect(manager.unlockedRewards.length).toBeGreaterThanOrEqual(0);
+        it('has no unlocked rewards on fresh initialization', () => {
+            // On first launch (no localStorage data), no rewards are unlocked yet
+            expect(manager.unlockedRewards).toEqual([]);
         });
     });
 

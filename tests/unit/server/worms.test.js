@@ -288,11 +288,14 @@ describe('WormManager', () => {
             // Advance past GOLDEN_WORM_SPAWN_INTERVAL_MS (300000)
             vi.advanceTimersByTime(330000);
 
-            const worms = manager.getActiveWorms('city');
-            const goldenWorm = worms.find(w => w.isGolden);
-
-            // Should have spawned (assuming check interval hit)
             expect(getPlayersInLocation).toHaveBeenCalled();
+
+            // At least one location should have a golden worm spawned
+            const locations = ['city', 'park', 'village', 'beach', 'mountain'];
+            const goldenWorms = locations.flatMap(loc =>
+                manager.getActiveWorms(loc).filter(w => w.isGolden)
+            );
+            expect(goldenWorms.length).toBeGreaterThan(0);
         });
 
         it('does not spawn when no players in location', () => {

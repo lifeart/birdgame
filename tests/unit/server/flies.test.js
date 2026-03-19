@@ -202,27 +202,23 @@ describe('FlyManager', () => {
         });
 
         it('does not respawn when above threshold', () => {
-            // Only collect one fly (should still be at or above MIN_FLIES_BEFORE_RESPAWN)
+            // Initial flies count is between 3-5 (FLIES_PER_LOCATION_MIN to MAX)
             const flies = manager.getActiveFlies('city');
             const initialCount = flies.length;
 
-            if (initialCount > 3) {
-                manager.collectFly('city', flies[0].id);
-            }
+            // Ensure we are at or above MIN_FLIES_BEFORE_RESPAWN (3)
+            expect(initialCount).toBeGreaterThanOrEqual(3);
 
             broadcastFn.mockClear();
             manager.startRespawnLoop();
             vi.advanceTimersByTime(10000);
 
-            // Should not have spawned if still above threshold
-            const remainingFlies = manager.getActiveFlies('city');
-            if (remainingFlies.length >= 3) {
-                // Broadcast should not have been called for respawn
-                const respawnCalls = broadcastFn.mock.calls.filter(
-                    call => call[0].type === 'fly_spawned' && call[1] === 'city'
-                );
-                expect(respawnCalls.length).toBe(0);
-            }
+            // Should not have spawned since we are at/above threshold
+            const respawnCalls = broadcastFn.mock.calls.filter(
+                call => call[0].type === 'fly_spawned' && call[1] === 'city'
+            );
+            expect(respawnCalls.length).toBe(0);
+            expect(manager.getActiveFlies('city').length).toBe(initialCount);
         });
 
         it('runs periodically', () => {
