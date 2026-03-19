@@ -4,6 +4,7 @@ import { Bird } from '../bird/index.ts';
 import { LOCATIONS } from '../environment/index.ts';
 import { DemoNetworkManager } from '../core/demo-network.ts';
 import type { AnyNetworkManager } from '../core/index.ts';
+import type { WelcomeData } from '../core/network.ts';
 import type { AudioManager } from '../core/audio.ts';
 import type { ProgressionManager } from '../core/progression.ts';
 import type { DailyRewardsManager } from '../core/rewards.ts';
@@ -60,6 +61,76 @@ export interface LifecycleContext {
     setNetwork: (network: AnyNetworkManager) => void;
 }
 
+/**
+ * Shared game initialization logic used by all game start paths
+ * (server connect, demo fallback, and WebRTC).
+ * Assumes ctx.ui, ctx.scene, and ctx.world are non-null.
+ */
+export function initGameWithData(
+    ctx: LifecycleContext,
+    gameData: WelcomeData,
+    birdType: string,
+    location: string
+): void {
+    const ui = ctx.ui!;
+    const scene = ctx.scene!;
+    const world = ctx.world!;
+
+    ui.hideMenu();
+    ui.showConnectionStatus('connected');
+    ctx.setCurrentLocation(location);
+    ui.setLocation(location);
+
+    if (ctx.touchControls && ctx.touchControls.isEnabled()) {
+        ctx.touchControls.show();
+    }
+
+    loadLocation(ctx, location);
+
+    const playerBird = new Bird(scene, birdType, true);
+    ctx.setPlayerBird(playerBird);
+
+    const birdRadius = playerBird.getCollisionRadius();
+    const safePos = world.findSafeSpawnPosition(0, 0, 15, birdRadius);
+    playerBird.setPosition(safePos.x, safePos.y, safePos.z);
+
+    const score = gameData.player?.score || 0;
+    ctx.setScore(score);
+    playerBird.setWormCount(score);
+
+    ctx.cameraOrbit.targetDistance = 8 + playerBird.config.size * 2;
+    ctx.cameraOrbit.distance = ctx.cameraOrbit.targetDistance;
+
+    if (gameData.worms && ctx.wormManager) {
+        ctx.wormManager.addWorms(gameData.worms);
+    }
+
+    if (gameData.flies && ctx.flyManager) {
+        ctx.flyManager.addFlies(gameData.flies);
+    }
+
+    if (gameData.players) {
+        gameData.players.forEach((player: PlayerData) => {
+            addOtherPlayer(ctx, player);
+        });
+    }
+
+    ui.updateScore(score);
+    ctx.updatePlayerList();
+
+    ui.showLeaderboard();
+    if (gameData.leaderboard) {
+        const rankedLeaderboard = gameData.leaderboard.map((entry, index) => ({
+            rank: index + 1,
+            name: entry.name,
+            score: entry.score
+        }));
+        ui.updateLeaderboard(rankedLeaderboard, ctx.network!.getPlayerName() ?? '');
+    }
+
+    applyUnlockedEffects(ctx);
+}
+
 export async function startGame(
     ctx: LifecycleContext,
     playerName: string,
@@ -85,63 +156,12 @@ export async function startGame(
             throw new Error('No game data received');
         }
 
-        ctx.ui.hideMenu();
-        ctx.ui.showConnectionStatus('connected');
-        ctx.setCurrentLocation(location);
-        ctx.ui.setLocation(location);
-
-        if (ctx.touchControls && ctx.touchControls.isEnabled()) {
-            ctx.touchControls.show();
-        }
-
-        loadLocation(ctx, location);
-
-        const playerBird = new Bird(ctx.scene, birdType, true);
-        ctx.setPlayerBird(playerBird);
-
-        const birdRadius = playerBird.getCollisionRadius();
-        const safePos = ctx.world.findSafeSpawnPosition(0, 0, 15, birdRadius);
-        playerBird.setPosition(safePos.x, safePos.y, safePos.z);
+        initGameWithData(ctx, gameData, birdType, location);
 
         const score = gameData.player?.score || 0;
-        ctx.setScore(score);
-        playerBird.setWormCount(score);
-
-        ctx.cameraOrbit.targetDistance = 8 + playerBird.config.size * 2;
-        ctx.cameraOrbit.distance = ctx.cameraOrbit.targetDistance;
-
-        if (gameData.worms && ctx.wormManager) {
-            ctx.wormManager.addWorms(gameData.worms);
-        }
-
-        if (gameData.flies && ctx.flyManager) {
-            ctx.flyManager.addFlies(gameData.flies);
-        }
-
-        if (gameData.players) {
-            gameData.players.forEach((player: PlayerData) => {
-                addOtherPlayer(ctx, player);
-            });
-        }
-
-        ctx.ui.updateScore(score);
-        ctx.updatePlayerList();
-
-        ctx.ui.showLeaderboard();
-        if (gameData.leaderboard) {
-            const rankedLeaderboard = gameData.leaderboard.map((entry, index) => ({
-                rank: index + 1,
-                name: entry.name,
-                score: entry.score
-            }));
-            ctx.ui.updateLeaderboard(rankedLeaderboard, ctx.network.getPlayerName() ?? '');
-        }
-
         if (gameData.isReturningPlayer && score > 0) {
             ctx.ui.addChatMessage('', `Welcome back! Your score of ${score} has been restored.`, true);
         }
-
-        applyUnlockedEffects(ctx);
 
         if (ctx.dailyRewardsManager && ctx.dailyRewardsManager.canClaim()) {
             const timeout = setTimeout(() => {
@@ -168,52 +188,7 @@ export async function startGame(
                 return;
             }
 
-            ctx.ui.hideMenu();
-            ctx.ui.showConnectionStatus('connected');
-            ctx.setCurrentLocation(location);
-            ctx.ui.setLocation(location);
-
-            if (ctx.touchControls && ctx.touchControls.isEnabled()) {
-                ctx.touchControls.show();
-            }
-
-            loadLocation(ctx, location);
-
-            const playerBird = new Bird(ctx.scene, birdType, true);
-            ctx.setPlayerBird(playerBird);
-
-            const birdRadius = playerBird.getCollisionRadius();
-            const safePos = ctx.world.findSafeSpawnPosition(0, 0, 15, birdRadius);
-            playerBird.setPosition(safePos.x, safePos.y, safePos.z);
-
-            const score = gameData.player?.score || 0;
-            ctx.setScore(score);
-            playerBird.setWormCount(score);
-
-            ctx.cameraOrbit.targetDistance = 8 + playerBird.config.size * 2;
-            ctx.cameraOrbit.distance = ctx.cameraOrbit.targetDistance;
-
-            if (gameData.worms && ctx.wormManager) {
-                ctx.wormManager.addWorms(gameData.worms);
-            }
-            if (gameData.flies && ctx.flyManager) {
-                ctx.flyManager.addFlies(gameData.flies);
-            }
-
-            ctx.ui.updateScore(score);
-            ctx.updatePlayerList();
-            ctx.ui.showLeaderboard();
-
-            if (gameData.leaderboard) {
-                const rankedLeaderboard = gameData.leaderboard.map((entry, index) => ({
-                    rank: index + 1,
-                    name: entry.name,
-                    score: entry.score
-                }));
-                ctx.ui.updateLeaderboard(rankedLeaderboard, ctx.network!.getPlayerName() ?? '');
-            }
-
-            applyUnlockedEffects(ctx);
+            initGameWithData(ctx, gameData, birdType, location);
 
             if (ctx.dailyRewardsManager && ctx.dailyRewardsManager.canClaim()) {
                 const timeout = setTimeout(() => {

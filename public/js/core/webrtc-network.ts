@@ -574,7 +574,7 @@ export class WebRTCNetworkManager {
                 });
             });
 
-            conn.on('data', (raw) => {
+            const initialHandler = (raw: unknown) => {
                 const msg: P2PMessage = typeof raw === 'string' ? JSON.parse(raw) : raw as P2PMessage;
 
                 if (msg.type === 'welcome') {
@@ -594,13 +594,14 @@ export class WebRTCNetworkManager {
                     resolve(welcomeData);
 
                     // Now handle subsequent messages normally
-                    conn.off('data', undefined as unknown as () => void);
-                    conn.on('data', (raw2) => {
+                    conn.off('data', initialHandler);
+                    conn.on('data', (raw2: unknown) => {
                         const msg2: P2PMessage = typeof raw2 === 'string' ? JSON.parse(raw2) : raw2 as P2PMessage;
                         this.handleClientMessage(msg2);
                     });
                 }
-            });
+            };
+            conn.on('data', initialHandler);
 
             conn.on('close', () => {
                 clearTimeout(timeout);

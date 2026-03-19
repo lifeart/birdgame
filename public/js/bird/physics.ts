@@ -85,10 +85,11 @@ function computeMovementIntent(input: NormalizedInput, cameraAngle: number): Mov
 // Update GTA-style movement - applies thrust in computed direction
 function updateGTAMovement(
     state: PhysicsState,
-    movement: MovementIntent
+    movement: MovementIntent,
+    dt: number
 ): void {
     if (movement.magnitude > 0.001) {
-        const accel = state.currentAcceleration * movement.magnitude;
+        const accel = state.currentAcceleration * movement.magnitude * dt;
         state.velocity.x += movement.x * accel;
         state.velocity.z += movement.z * accel;
     }
@@ -114,12 +115,13 @@ function updateAutoRotation(
     state: PhysicsState,
     movement: MovementIntent,
     config: BirdTypeConfig,
-    hasForwardInput: boolean
+    hasForwardInput: boolean,
+    dt: number
 ): void {
     // Only rotate when moving forward (not when reversing or stationary)
     if (movement.magnitude < 0.1 || !hasForwardInput) {
         // When stationary or reversing, just apply damping
-        state.rotationVelocity *= ROTATION_DAMPING;
+        state.rotationVelocity *= Math.pow(ROTATION_DAMPING, dt);
         return;
     }
 
@@ -139,11 +141,11 @@ function updateAutoRotation(
     // Gradual rotation toward target - slower for more cinematic turns
     // Lower smoothing = more gradual turn
     const turnSmoothFactor = config.turnResponsiveness ?? 0.06;  // How much of the angle difference to cover per frame
-    const maxTurn = config.turnSpeed * 0.8 * movement.magnitude;  // Cap turn rate
+    const maxTurn = config.turnSpeed * 0.8 * movement.magnitude * dt;  // Cap turn rate
 
     // Apply rotation
     if (Math.abs(angleDiff) > 0.01) {
-        const turnAmount = Math.sign(angleDiff) * Math.min(Math.abs(angleDiff) * turnSmoothFactor, maxTurn);
+        const turnAmount = Math.sign(angleDiff) * Math.min(Math.abs(angleDiff) * turnSmoothFactor * dt, maxTurn);
         state.rotation += turnAmount;
         // Set rotation velocity for visual banking and camera effects
         // Amplify turnAmount (typically 0-0.05) to useful range for camera (0-0.2)
@@ -151,7 +153,7 @@ function updateAutoRotation(
     } else {
         state.rotation = targetRotation;
         // When aligned, decay rotation velocity for smooth settling
-        state.rotationVelocity *= ROTATION_DAMPING;
+        state.rotationVelocity *= Math.pow(ROTATION_DAMPING, dt);
     }
 }
 
@@ -159,7 +161,8 @@ function updateAutoRotation(
 function updateRotationLegacy(
     state: PhysicsState,
     input: NormalizedInput,
-    config: BirdTypeConfig
+    config: BirdTypeConfig,
+    dt: number
 ): void {
     // Balance: higher speed = lower turn rate (50% turn rate at max speed)
     const minTurnRatio = 0.5;
@@ -170,28 +173,29 @@ function updateRotationLegacy(
 
     // Keyboard A/D turning
     if (input.left > 0) {
-        const turnAmount = effectiveTurnSpeed * 0.6 * input.left;
+        const turnAmount = effectiveTurnSpeed * 0.6 * input.left * dt;
         state.rotation += turnAmount;
         state.rotationVelocity += turnAmount * 1.5;
     }
     if (input.right > 0) {
-        const turnAmount = effectiveTurnSpeed * 0.6 * input.right;
+        const turnAmount = effectiveTurnSpeed * 0.6 * input.right * dt;
         state.rotation -= turnAmount;
         state.rotationVelocity -= turnAmount * 1.5;
     }
 
     // Always apply damping
-    state.rotationVelocity *= ROTATION_DAMPING;
+    state.rotationVelocity *= Math.pow(ROTATION_DAMPING, dt);
 }
 
 // Update horizontal thrust
 function updateHorizontalThrust(
     state: PhysicsState,
-    input: NormalizedInput
+    input: NormalizedInput,
+    dt: number
 ): void {
     // Forward thrust
     if (input.forward > 0) {
-        const accel = state.currentAcceleration * input.forward;
+        const accel = state.currentAcceleration * input.forward * dt;
         const forwardX = Math.sin(state.rotation) * accel;
         const forwardZ = Math.cos(state.rotation) * accel;
         state.velocity.x += forwardX;
@@ -200,7 +204,7 @@ function updateHorizontalThrust(
 
     // Backward thrust (slower than forward)
     if (input.backward > 0) {
-        const backwardAccel = state.currentAcceleration * 0.5 * input.backward;
+        const backwardAccel = state.currentAcceleration * 0.5 * input.backward * dt;
         const backwardX = -Math.sin(state.rotation) * backwardAccel;
         const backwardZ = -Math.cos(state.rotation) * backwardAccel;
         state.velocity.x += backwardX;
@@ -226,7 +230,8 @@ function updateHorizontalThrust(
 function updatePenguinVertical(
     state: PhysicsState,
     input: NormalizedInput,
-    config: BirdTypeConfig
+    config: BirdTypeConfig,
+    dt: number
 ): void {
     state.isFlapping = input.up > 0;
     state.isOnGround = state.position.y <= 2.1;
@@ -243,7 +248,7 @@ function updatePenguinVertical(
     }
 
     // Stronger gravity for penguin (falls faster)
-    state.velocity.y -= GRAVITY * 1.5;
+    state.velocity.y -= GRAVITY * 1.5 * dt;
 
     // Penguin waddle state
     state.isWaddling = state.isOnGround && state.horizontalSpeed > 0.05;
@@ -253,37 +258,39 @@ function updatePenguinVertical(
 function updateFlyingVertical(
     state: PhysicsState,
     input: NormalizedInput,
-    config: BirdTypeConfig
+    config: BirdTypeConfig,
+    dt: number
 ): void {
     state.isFlapping = input.up > 0;
 
     // Apply gravity for flying birds (species can tweak weight/floatiness)
-    state.velocity.y -= GRAVITY * (config.gravityScale ?? 1);
+    state.velocity.y -= GRAVITY * (config.gravityScale ?? 1) * dt;
 
     if (input.up > 0) {
-        state.velocity.y += config.liftPower * input.up;
+        state.velocity.y += config.liftPower * input.up * dt;
     }
 
     if (input.down > 0) {
-        state.velocity.y -= config.liftPower * 0.5 * input.down;
+        state.velocity.y -= config.liftPower * 0.5 * input.down * dt;
     }
 
     // Gliding
     state.isGliding = input.up === 0 && input.down === 0 && state.horizontalSpeed > 0.2;
     if (state.isGliding) {
-        const glideLift = state.horizontalSpeed * config.glideEfficiency * 0.02;
+        const glideLift = state.horizontalSpeed * config.glideEfficiency * 0.02 * dt;
         state.velocity.y += glideLift;
     }
 }
 
 // Apply bounds to position
-function applyBounds(state: PhysicsState): void {
+function applyBounds(state: PhysicsState, dt: number): void {
     // Ground bound
     if (state.position.y < 2) {
         state.position.y = 2;
         state.velocity.y = Math.max(0, state.velocity.y);
-        state.velocity.x *= 0.9;
-        state.velocity.z *= 0.9;
+        const groundFriction = Math.pow(0.9, dt);
+        state.velocity.x *= groundFriction;
+        state.velocity.z *= groundFriction;
     }
 
     // Sky bound
@@ -300,12 +307,21 @@ function applyBounds(state: PhysicsState): void {
 
 // Main physics update function
 // cameraAngle: Optional camera orbit angle for GTA-style movement
+// delta: Time since last frame in seconds (from clock.getDelta())
 export function updatePhysics(
     input: BirdInput,
     state: PhysicsState,
     config: BirdTypeConfig,
-    cameraAngle?: number
+    cameraAngle?: number,
+    delta?: number
 ): void {
+    // Clamp and normalize delta to 60fps baseline
+    // dt=1.0 at 60fps, dt=0.5 at 120fps, dt=2.0 at 30fps
+    let safeDelta = (delta !== undefined && delta > 0) ? delta : 1 / 60;
+    safeDelta = Math.min(Math.max(safeDelta, 0), 0.1);
+    if (safeDelta <= 0) safeDelta = 1 / 60;
+    const dt = safeDelta * 60;
+
     const normalizedInput = normalizeInput(input);
 
     // GTA-style controls when camera angle is provided
@@ -314,36 +330,36 @@ export function updatePhysics(
         const movement = computeMovementIntent(normalizedInput, cameraAngle);
 
         // Apply GTA movement
-        updateGTAMovement(state, movement);
+        updateGTAMovement(state, movement, dt);
 
         // Auto-rotate bird toward movement direction (only when moving forward, like a car)
         const hasForwardInput = normalizedInput.forward > 0;
-        updateAutoRotation(state, movement, config, hasForwardInput);
+        updateAutoRotation(state, movement, config, hasForwardInput, dt);
     } else {
         // Legacy mode: bird-relative controls
-        updateRotationLegacy(state, normalizedInput, config);
-        updateHorizontalThrust(state, normalizedInput);
+        updateRotationLegacy(state, normalizedInput, config, dt);
+        updateHorizontalThrust(state, normalizedInput, dt);
     }
 
     // Update vertical movement based on bird type (gravity applied inside each function)
     if (config.canFly === false) {
-        updatePenguinVertical(state, normalizedInput, config);
+        updatePenguinVertical(state, normalizedInput, config, dt);
     } else {
-        updateFlyingVertical(state, normalizedInput, config);
+        updateFlyingVertical(state, normalizedInput, config, dt);
     }
 
     // Clamp vertical velocity
     state.velocity.y = Math.max(-state.currentMaxSpeed, Math.min(state.currentMaxSpeed * 0.8, state.velocity.y));
 
-    // Apply air resistance
-    state.velocity.x *= AIR_RESISTANCE;
-    state.velocity.z *= AIR_RESISTANCE;
+    // Apply air resistance (frame-rate independent: raise to power of dt)
+    state.velocity.x *= Math.pow(AIR_RESISTANCE, dt);
+    state.velocity.z *= Math.pow(AIR_RESISTANCE, dt);
 
-    // Apply velocity to position
-    state.position.add(state.velocity);
+    // Apply velocity to position (scale by dt for frame-rate independence)
+    state.position.addScaledVector(state.velocity, dt);
 
     // Apply bounds
-    applyBounds(state);
+    applyBounds(state, dt);
 }
 
 // Create initial physics state

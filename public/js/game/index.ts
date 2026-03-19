@@ -39,8 +39,7 @@ import {
 import { setupNetworkCallbacks, type NetworkCallbackContext } from './callbacks.ts';
 import {
     startGame as startGameLifecycle,
-    loadLocation as loadLocationLifecycle,
-    applyUnlockedEffects as applyUnlockedEffectsLifecycle,
+    initGameWithData as initGameWithDataLifecycle,
     changeLocation as changeLocationLifecycle,
     respawnPlayer as respawnPlayerLifecycle,
     addOtherPlayer as addOtherPlayerLifecycle,
@@ -157,21 +156,24 @@ export class Game {
         );
 
         // Create renderer
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        this.renderer.shadowMap.type = isMobile ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
         document.body.appendChild(this.renderer.domElement);
 
         // Add lights
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
         this.scene.add(ambientLight);
 
+        const shadowRes = isMobile ? 1024 : 2048;
         const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
         directionalLight.position.set(50, 100, 50);
         directionalLight.castShadow = true;
-        directionalLight.shadow.mapSize.width = 2048;
-        directionalLight.shadow.mapSize.height = 2048;
+        directionalLight.shadow.mapSize.width = shadowRes;
+        directionalLight.shadow.mapSize.height = shadowRes;
         directionalLight.shadow.camera.near = 0.5;
         directionalLight.shadow.camera.far = 500;
         directionalLight.shadow.camera.left = -100;
@@ -473,6 +475,7 @@ export class Game {
     private setNetwork(network: AnyNetworkManager): void {
         if (this.network) {
             this.network.removeAllCallbacks();
+            this.network.disconnect();
         }
         this.network = network;
         this.initNetworkCallbacks();
@@ -487,48 +490,7 @@ export class Game {
         if (!ctx.ui || !ctx.scene || !ctx.world) return;
 
         this.isRunning = true;
-        ctx.ui.hideMenu();
-        ctx.ui.showConnectionStatus('connected');
-        ctx.setCurrentLocation(location);
-        ctx.ui.setLocation(location);
-
-        if (ctx.touchControls && ctx.touchControls.isEnabled()) {
-            ctx.touchControls.show();
-        }
-
-        loadLocationLifecycle(ctx, location);
-
-        const playerBird = new Bird(ctx.scene, birdType, true);
-        ctx.setPlayerBird(playerBird);
-        const birdRadius = playerBird.getCollisionRadius();
-        const safePos = ctx.world.findSafeSpawnPosition(0, 0, 15, birdRadius);
-        playerBird.setPosition(safePos.x, safePos.y, safePos.z);
-
-        const score = gameData.player?.score || 0;
-        ctx.setScore(score);
-        playerBird.setWormCount(score);
-
-        this.cameraOrbit.targetDistance = 8 + playerBird.config.size * 2;
-        this.cameraOrbit.distance = this.cameraOrbit.targetDistance;
-
-        if (gameData.worms && ctx.wormManager) ctx.wormManager.addWorms(gameData.worms);
-        if (gameData.flies && ctx.flyManager) ctx.flyManager.addFlies(gameData.flies);
-        if (gameData.players) {
-            gameData.players.forEach((player: PlayerData) => this.addOtherPlayer(player));
-        }
-
-        ctx.ui.updateScore(score);
-        ctx.updatePlayerList();
-        ctx.ui.showLeaderboard();
-
-        if (gameData.leaderboard) {
-            const rankedLeaderboard = gameData.leaderboard.map((entry, index) => ({
-                rank: index + 1, name: entry.name, score: entry.score,
-            }));
-            ctx.ui.updateLeaderboard(rankedLeaderboard, this.network?.getPlayerName() ?? '');
-        }
-
-        applyUnlockedEffectsLifecycle(ctx);
+        initGameWithDataLifecycle(ctx, gameData, birdType, location);
         this.animateLoop();
     }
 
