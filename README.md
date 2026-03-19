@@ -2,17 +2,21 @@
 
 A 3D multiplayer bird flying game built with Three.js. Fly as one of 7 bird types, collect worms and flies, compete on the leaderboard, and explore 5 unique locations.
 
+**[Play the Demo](https://lifeart.github.io/birdgame/)**
+
 ![BirdGame Gameplay](birdgame-gameplay.gif)
 
 ## Features
 
-- **7 bird types** — Sparrow, Pigeon, Crow, Hummingbird, Penguin, Owl, Goose — each with unique flight characteristics
+- **7 bird types** — Sparrow, Pigeon, Crow, Hummingbird, Penguin, Owl, Goose — each with unique flight characteristics and glide mechanics
 - **5 locations** — City, Park, Village, Beach, Mountain
 - **Multiplayer** — WebSocket server or P2P via WebRTC (PeerJS)
 - **Offline demo mode** — works without a backend (auto-fallback)
-- **Collectibles** — worms (1pt), flies (2pt), golden worms (10pt)
+- **Collectibles** — worms (1pt), flies (4pt), golden worms (10pt)
+- **Combo system** — collect items in quick succession for XP multipliers (1.5x/2x/3x)
 - **Progression** — 50 levels, XP system, daily rewards, unlockable trails and auras
-- **Weather & time of day** — dynamic weather system
+- **Weather & time of day** — dynamic weather with wind-blown rain
+- **Visual effects** — collection bursts, golden worm glow, fly wing shimmer, bird scale pulse
 - **PWA** — installable, works offline via service worker
 - **Mobile** — touch controls with D-pad
 
