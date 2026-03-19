@@ -1,24 +1,29 @@
 // BirdGame Service Worker
 const CACHE_NAME = 'birdgame-v1.1.0';
 
-const STATIC_ASSETS = [
-    '/',
-    '/index.html',
-    '/css/style.css',
-    '/js/bundle.js',
-    '/manifest.json',
-    '/icons/icon-72.png',
-    '/icons/icon-96.png',
-    '/icons/icon-128.png',
-    '/icons/icon-144.png',
-    '/icons/icon-152.png',
-    '/icons/icon-192.png',
-    '/icons/icon-384.png',
-    '/icons/icon-512.png',
-    '/favicon.ico'
+// Use the service worker's location to derive the base path
+// This works on both root (localhost) and subpath (github.io/birdgame/)
+const SW_BASE = self.registration.scope;
+
+const STATIC_ASSET_PATHS = [
+    '',
+    'index.html',
+    'css/style.css',
+    'js/bundle.js',
+    'manifest.json',
+    'icons/icon-72.png',
+    'icons/icon-96.png',
+    'icons/icon-128.png',
+    'icons/icon-144.png',
+    'icons/icon-152.png',
+    'icons/icon-192.png',
+    'icons/icon-384.png',
+    'icons/icon-512.png',
+    'favicon.ico'
 ];
 
-const ALL_ASSETS = STATIC_ASSETS;
+// Resolve relative paths against service worker scope at install time
+const ALL_ASSETS = STATIC_ASSET_PATHS.map(p => new URL(p, self.location).href);
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
@@ -96,7 +101,7 @@ self.addEventListener('fetch', (event) => {
             .catch(() => {
                 // Return offline fallback for HTML pages
                 if (event.request.headers.get('accept')?.includes('text/html')) {
-                    return caches.match('/index.html');
+                    return caches.match(new URL('index.html', self.location).href);
                 }
                 return new Response('Offline', { status: 503 });
             })
