@@ -40,6 +40,7 @@ export {
 } from './network.ts';
 export { DemoNetworkManager } from './demo-network.ts';
 export { WebRTCNetworkManager } from './webrtc-network.ts';
+export { ComboManager } from './combo.ts';
 
 import type { NetworkManager } from './network.ts';
 import type { DemoNetworkManager } from './demo-network.ts';

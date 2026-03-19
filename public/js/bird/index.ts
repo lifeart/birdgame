@@ -1839,6 +1839,38 @@ export class Bird {
         updateAnimation(this.physics, this.anim, this.getBirdParts(), this.config);
     }
 
+    /**
+     * Update synthetic physics state for non-player birds based on position deltas.
+     * This drives animations (wing flap, tilt, legs) for other players' birds.
+     */
+    updateSyntheticPhysics(dx: number, dy: number, dz: number, delta: number): void {
+        const horizontalSpeed = Math.sqrt(dx * dx + dz * dz) / Math.max(delta, 0.001);
+        const verticalSpeed = dy / Math.max(delta, 0.001);
+
+        // Set velocity for animation system (used for tilts, tail, etc.)
+        this.physics.velocity.set(dx / Math.max(delta, 0.001), verticalSpeed, dz / Math.max(delta, 0.001));
+        this.physics.horizontalSpeed = horizontalSpeed;
+
+        // Compute rotation velocity from direction change
+        if (horizontalSpeed > 0.1) {
+            const targetRotation = Math.atan2(dx, dz);
+            let rotDiff = targetRotation - this.physics.rotation;
+            // Normalize to [-PI, PI]
+            while (rotDiff > Math.PI) rotDiff -= Math.PI * 2;
+            while (rotDiff < -Math.PI) rotDiff += Math.PI * 2;
+            this.physics.rotationVelocity = rotDiff * 0.3;
+        } else {
+            this.physics.rotationVelocity *= 0.9;
+        }
+
+        // Set animation flags based on movement
+        this.physics.isFlapping = verticalSpeed > 0.5 || horizontalSpeed > 0.5;
+        this.physics.isGliding = horizontalSpeed > 0.3 && verticalSpeed <= 0.5 && verticalSpeed >= -0.5;
+        this.physics.isWaddling = horizontalSpeed > 0.1 && this.config.canFly === false;
+        this.physics.isOnGround = Math.abs(verticalSpeed) < 0.1 && this.physics.position.y < 1;
+        this.physics.isJumping = verticalSpeed > 0.3 && this.config.canFly === false;
+    }
+
     setPosition(x: number, y: number, z: number): void {
         this.physics.position.set(x, y, z);
         this.group.position.copy(this.physics.position);

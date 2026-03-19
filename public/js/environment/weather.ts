@@ -455,16 +455,24 @@ export class WeatherSystem {
             }
         }
 
-        // Update rain
+        // Update rain with wind drift
         if (this.rainSystem && this.rainSystem.visible) {
             const positions = this.rainSystem.geometry.attributes.position.array;
+            // Gentle wind drift that varies over time
+            const windX = Math.sin(time * 0.3) * 0.4;
+            const windZ = Math.cos(time * 0.2) * 0.2;
 
             for (let i = 0; i < this.rainVelocities!.length; i++) {
                 const speed = this.rainVelocities![i] * 2;
 
-                // Move both start and end points down
+                // Move both start and end points down + wind
                 positions[i * 6 + 1] -= speed;
                 positions[i * 6 + 4] -= speed;
+                positions[i * 6] += windX * 0.1;
+                positions[i * 6 + 2] += windZ * 0.1;
+                // Offset end point slightly for angled rain streaks
+                positions[i * 6 + 3] += windX * 0.08;
+                positions[i * 6 + 5] += windZ * 0.08;
 
                 // Reset if below ground
                 if (positions[i * 6 + 1] < 0) {

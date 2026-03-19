@@ -829,8 +829,46 @@ export class UIManager {
         this.addChatMessage('', `Room created! Code: ${code}`, true);
     }
 
+    // ==================== COMBO UI ====================
+
+    private comboTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    showCombo(streak: number, multiplier: number): void {
+        let el = document.getElementById('combo-display');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'combo-display';
+            el.className = 'combo-display';
+            document.body.appendChild(el);
+        }
+
+        el.textContent = `x${multiplier} COMBO! (${streak})`;
+        el.className = 'combo-display';
+        if (multiplier >= 3) el.classList.add('x3');
+        else if (multiplier >= 2) el.classList.add('x2');
+
+        if (this.comboTimeout) clearTimeout(this.comboTimeout);
+        this.comboTimeout = setTimeout(() => {
+            el!.classList.add('hidden');
+            this.comboTimeout = null;
+        }, 3000);
+    }
+
+    hideCombo(): void {
+        const el = document.getElementById('combo-display');
+        if (el) el.classList.add('hidden');
+        if (this.comboTimeout) {
+            clearTimeout(this.comboTimeout);
+            this.comboTimeout = null;
+        }
+    }
+
     cleanup(): void {
         // Clear all timeouts
+        if (this.comboTimeout) {
+            clearTimeout(this.comboTimeout);
+            this.comboTimeout = null;
+        }
         if (this.cameraModeTimeout) {
             clearTimeout(this.cameraModeTimeout);
             this.cameraModeTimeout = null;

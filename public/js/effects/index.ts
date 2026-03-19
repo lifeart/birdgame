@@ -450,9 +450,11 @@ export class EffectsManager {
         });
     }
 
-    createCollectionBurst(position: THREE.Vector3, isGolden: boolean = false): void {
+    createCollectionBurst(position: THREE.Vector3, isGolden: boolean = false, birdGroup?: THREE.Group): void {
         const particleCount = isGolden ? 20 : 10;
-        const color = isGolden ? 0xFFD700 : 0x90EE90;
+        const colors = isGolden
+            ? [0xFFD700, 0xFFAA00, 0xFFFF88]
+            : [0x90EE90, 0x98FB98, 0xAAFFAA];
 
         while (this.particles.length > EffectsManager.MAX_PARTICLES - particleCount) {
             const oldParticle = this.particles.shift();
@@ -465,6 +467,7 @@ export class EffectsManager {
         const geom = isGolden ? this.sharedGeometries!.burstParticleGolden : this.sharedGeometries!.burstParticle;
 
         for (let i = 0; i < particleCount; i++) {
+            const color = colors[Math.floor(Math.random() * colors.length)];
             const particleMat = new THREE.MeshBasicMaterial({
                 color: color,
                 transparent: true,
@@ -473,19 +476,54 @@ export class EffectsManager {
             const particle = new THREE.Mesh(geom, particleMat);
             particle.position.copy(position);
 
+            // Radial burst pattern for more satisfying feel
+            const angle = (i / particleCount) * Math.PI * 2;
+            const speed = isGolden ? 0.4 : 0.3;
             const velocity = new THREE.Vector3(
-                (Math.random() - 0.5) * 0.3,
-                Math.random() * 0.3 + 0.1,
-                (Math.random() - 0.5) * 0.3
+                Math.cos(angle) * speed * (0.7 + Math.random() * 0.3),
+                Math.random() * 0.3 + 0.15,
+                Math.sin(angle) * speed * (0.7 + Math.random() * 0.3)
             );
 
             this.scene.add(particle);
             this.particles.push({
                 mesh: particle,
                 velocity: velocity,
-                life: 1
+                life: isGolden ? 1.2 : 1
             });
         }
+
+        // Scale pulse on bird when collecting
+        if (birdGroup) {
+            this._scalePulseBird(birdGroup);
+        }
+    }
+
+    private _scalePulseBird(birdGroup: THREE.Group): void {
+        const originalScale = birdGroup.scale.clone();
+        const targetScale = 1.1;
+        const duration = 200; // ms
+        const start = Date.now();
+
+        const pulseTick = () => {
+            const elapsed = Date.now() - start;
+            const t = Math.min(elapsed / duration, 1);
+            // Ease out then back: scale up to 1.1 at t=0.5, back to 1.0 at t=1.0
+            const s = t < 0.5
+                ? 1 + (targetScale - 1) * (t / 0.5)
+                : targetScale - (targetScale - 1) * ((t - 0.5) / 0.5);
+            birdGroup.scale.set(
+                originalScale.x * s,
+                originalScale.y * s,
+                originalScale.z * s
+            );
+            if (t < 1) {
+                requestAnimationFrame(pulseTick);
+            } else {
+                birdGroup.scale.copy(originalScale);
+            }
+        };
+        requestAnimationFrame(pulseTick);
     }
 
     createLevelUpBurst(position: THREE.Vector3): void {

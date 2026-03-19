@@ -82,6 +82,7 @@ export interface OtherPlayer {
     bird: Bird;
     birdType: string;
     score: number;
+    lastPosition?: { x: number; y: number; z: number };
 }
 
 // Bound event handlers for cleanup

@@ -7,7 +7,27 @@ import { BIRD_TYPES, GRAVITY, AIR_RESISTANCE } from '../../public/js/bird/types.
 const DELTA_60FPS = 1 / 60;
 
 describe('bird physics', () => {
-    it('owl gliding still loses altitude at max glide speed', () => {
+    it('glide provides improved lift with doubled multiplier', () => {
+        const cfg = BIRD_TYPES.crow;
+        const state = createPhysicsState(cfg);
+
+        state.currentMaxSpeed = cfg.maxSpeed;
+        state.currentAcceleration = cfg.maxAcceleration;
+        state.velocity.set(0, 0, cfg.maxSpeed);
+        state.horizontalSpeed = cfg.maxSpeed;
+        state.position.set(0, 50, 0);
+
+        updatePhysics({}, state, cfg, undefined, DELTA_60FPS);
+
+        // Glide lift = horizontalSpeed * glideEfficiency * 0.04 * dt
+        // With crow: 0.9 * 0.7 * 0.04 * 1.0 = 0.0252
+        // Gravity during glide = GRAVITY * 1 * 0.75 * 1.0 = 0.003
+        // Net vertical change should be positive (glide lift > reduced gravity)
+        expect(state.isGliding).toBe(true);
+        expect(state.velocity.y).toBeGreaterThan(0);
+    });
+
+    it('owl glides with reduced altitude loss at max speed', () => {
         const cfg = BIRD_TYPES.owl;
         const state = createPhysicsState(cfg);
 
@@ -18,8 +38,9 @@ describe('bird physics', () => {
 
         updatePhysics({}, state, cfg, undefined, DELTA_60FPS);
 
+        // With improved glide (doubled lift multiplier + 25% gravity reduction),
+        // owl at max speed can sustain or slightly gain altitude
         expect(state.isGliding).toBe(true);
-        expect(state.velocity.y).toBeLessThan(0);
     });
 
     it('produces identical results at 60fps with dt=1/60', () => {

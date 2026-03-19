@@ -263,8 +263,13 @@ function updateFlyingVertical(
 ): void {
     state.isFlapping = input.up > 0;
 
+    // Gliding check (computed before gravity so we can reduce gravity during glide)
+    state.isGliding = input.up === 0 && input.down === 0 && state.horizontalSpeed > 0.2;
+
     // Apply gravity for flying birds (species can tweak weight/floatiness)
-    state.velocity.y -= GRAVITY * (config.gravityScale ?? 1) * dt;
+    // Reduce gravity by 25% during glide for smoother soaring
+    const glideGravityFactor = state.isGliding ? 0.75 : 1;
+    state.velocity.y -= GRAVITY * (config.gravityScale ?? 1) * glideGravityFactor * dt;
 
     if (input.up > 0) {
         state.velocity.y += config.liftPower * input.up * dt;
@@ -274,10 +279,9 @@ function updateFlyingVertical(
         state.velocity.y -= config.liftPower * 0.5 * input.down * dt;
     }
 
-    // Gliding
-    state.isGliding = input.up === 0 && input.down === 0 && state.horizontalSpeed > 0.2;
+    // Glide lift
     if (state.isGliding) {
-        const glideLift = state.horizontalSpeed * config.glideEfficiency * 0.02 * dt;
+        const glideLift = state.horizontalSpeed * config.glideEfficiency * 0.04 * dt;
         state.velocity.y += glideLift;
     }
 }

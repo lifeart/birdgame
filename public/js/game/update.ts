@@ -207,9 +207,19 @@ export function update(ctx: UpdateContext, delta: number): void {
         ctx.setGoldenWormAlertShown(false);
     }
 
-    // Update other players (neutral input - they only need animation updates, not movement)
+    // Update other players - compute synthetic physics from position deltas for animations
     ctx.otherPlayers.forEach(player => {
         if (player.bird) {
+            const pos = player.bird.position;
+
+            if (player.lastPosition) {
+                const dx = pos.x - player.lastPosition.x;
+                const dy = pos.y - player.lastPosition.y;
+                const dz = pos.z - player.lastPosition.z;
+                player.bird.updateSyntheticPhysics(dx, dy, dz, delta);
+            }
+
+            player.lastPosition = { x: pos.x, y: pos.y, z: pos.z };
             player.bird.update({} as MergedInput, delta);
         }
     });

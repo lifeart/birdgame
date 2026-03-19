@@ -5,7 +5,7 @@ import { Bird } from '../bird/index.ts';
 import { WormManager, FlyManager } from '../entities/index.ts';
 import { WeatherSystem, LOCATIONS } from '../environment/index.ts';
 import { EffectsManager, AmbientParticleSystem } from '../effects/index.ts';
-import { NetworkManager, DemoNetworkManager, WebRTCNetworkManager, AudioManager, ProgressionManager, DailyRewardsManager, type LevelReward, type ClaimedReward, type AnyNetworkManager } from '../core/index.ts';
+import { NetworkManager, DemoNetworkManager, WebRTCNetworkManager, AudioManager, ProgressionManager, DailyRewardsManager, ComboManager, type LevelReward, type ClaimedReward, type AnyNetworkManager } from '../core/index.ts';
 import { UIManager, TouchControls, CAMERA_MODES, type CameraMode, type GameInterface } from '../ui/index.ts';
 
 import {
@@ -111,6 +111,7 @@ export class Game {
     private collisionRespawnDelay: number = GAME_CONSTANTS.COLLISION_RESPAWN_DELAY;
 
     private goldenWormAlertShown: boolean = false;
+    private comboManager: ComboManager = new ComboManager();
 
     private clock: THREE.Clock;
 
@@ -451,6 +452,7 @@ export class Game {
             wormManager: this.wormManager,
             flyManager: this.flyManager,
             effectsManager: this.effectsManager,
+            comboManager: this.comboManager,
             playerBird: this.playerBird,
             otherPlayers: this.otherPlayers,
             addOtherPlayer: (playerData: PlayerData) => this.addOtherPlayer(playerData),

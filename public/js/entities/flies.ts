@@ -219,6 +219,15 @@ export class FlyManager {
     }
 
     update(time: number): void {
+        // Animate wing material shimmer
+        if (this.sharedMaterials?.wing) {
+            this.sharedMaterials.wing.opacity = 0.35 + Math.sin(time * 6) * 0.15;
+        }
+        // Animate eye emissive for subtle glow
+        if (this.sharedMaterials?.eye) {
+            this.sharedMaterials.eye.emissiveIntensity = 0.3 + Math.sin(time * 4) * 0.2;
+        }
+
         this.flies.forEach((fly) => {
             const bob = Math.sin(time * 8 + fly.flyOffset) * 0.3;
             fly.mesh.position.y = fly.baseY + bob;
@@ -234,8 +243,11 @@ export class FlyManager {
             fly.mesh.children.forEach(child => {
                 if (child.name === 'leftWing') {
                     child.rotation.z = wingAngle;
+                    // Wing tilt for more visible flapping
+                    child.rotation.x = 0.2 + Math.sin(time * 50 + fly.flyOffset) * 0.15;
                 } else if (child.name === 'rightWing') {
                     child.rotation.z = -wingAngle;
+                    child.rotation.x = 0.2 + Math.sin(time * 50 + fly.flyOffset) * 0.15;
                 } else if (child.name === 'indicator') {
                     child.rotation.y = -fly.mesh.rotation.y;
                 }

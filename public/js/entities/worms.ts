@@ -289,10 +289,15 @@ export class WormManager {
             worm.mesh.position.y = worm.y + wiggle + Math.sin(time * 3) * 0.3;
             worm.mesh.rotation.y += 0.03;
 
+            // Pulsing emissive glow on body segments
+            if (this.sharedMaterials?.goldenBody) {
+                this.sharedMaterials.goldenBody.emissiveIntensity = 0.5 + Math.sin(time * 4) * 0.35;
+            }
+
             if (worm.mesh.userData.glow) {
-                const scale = 1 + Math.sin(time * 4) * 0.2;
+                const scale = 1 + Math.sin(time * 4) * 0.3;
                 worm.mesh.userData.glow.scale.set(scale, scale, scale);
-                worm.mesh.userData.glow.material.opacity = 0.2 + Math.sin(time * 5) * 0.15;
+                worm.mesh.userData.glow.material.opacity = 0.25 + Math.sin(time * 5) * 0.2;
             }
 
             if (worm.mesh.userData.sparkles) {
@@ -302,6 +307,12 @@ export class WormManager {
                     sparkle.position.x = Math.cos(angle) * radius;
                     sparkle.position.y = Math.sin(angle * 0.5) * 0.5;
                     sparkle.position.z = Math.sin(angle) * radius;
+                    // Twinkling sparkle opacity
+                    const sparkleMesh = sparkle as THREE.Mesh;
+                    if (sparkleMesh.material) {
+                        (sparkleMesh.material as THREE.MeshBasicMaterial).opacity =
+                            0.5 + Math.sin(time * 8 + sparkle.userData.angle) * 0.5;
+                    }
                 });
             }
 

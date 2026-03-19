@@ -23,8 +23,8 @@ describe('FlyManager', () => {
 
             locations.forEach(location => {
                 const flies = manager.getActiveFlies(location);
-                expect(flies.length).toBeGreaterThanOrEqual(3); // FLIES_PER_LOCATION_MIN
-                expect(flies.length).toBeLessThanOrEqual(5);    // FLIES_PER_LOCATION_MAX
+                expect(flies.length).toBeGreaterThanOrEqual(8); // FLIES_PER_LOCATION_MIN
+                expect(flies.length).toBeLessThanOrEqual(12);   // FLIES_PER_LOCATION_MAX
             });
         });
 
@@ -102,7 +102,7 @@ describe('FlyManager', () => {
             const result = manager.collectFly('city', flyId);
 
             expect(result).not.toBeNull();
-            expect(result.points).toBe(2); // FLY_POINTS
+            expect(result.points).toBe(4); // FLY_POINTS
         });
 
         it('returns null for already collected fly', () => {
@@ -136,7 +136,7 @@ describe('FlyManager', () => {
 
             const result = manager.collectFly('city', flyId);
 
-            expect(result.points).toBe(2);
+            expect(result.points).toBe(4);
         });
     });
 

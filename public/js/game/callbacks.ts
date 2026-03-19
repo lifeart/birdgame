@@ -7,6 +7,7 @@ import type { WormManager, FlyManager } from '../entities/index.ts';
 import type { EffectsManager } from '../effects/index.ts';
 import type { Bird } from '../bird/index.ts';
 import type { OtherPlayer, PlayerData, WormData, FlyData } from './types.ts';
+import type { ComboManager } from '../core/combo.ts';
 
 // Context interface for network callbacks
 export interface NetworkCallbackContext {
@@ -23,6 +24,7 @@ export interface NetworkCallbackContext {
     wormManager: WormManager | null;
     flyManager: FlyManager | null;
     effectsManager: EffectsManager | null;
+    comboManager: ComboManager;
     playerBird: Bird | null;
     otherPlayers: Map<string, OtherPlayer>;
 
@@ -88,11 +90,20 @@ export function setupNetworkCallbacks(ctx: NetworkCallbackContext): void {
                 ctx.playerBird.setWormCount(ctx.score);
             }
 
+            const comboMultiplier = ctx.comboManager.registerCollection(isGolden);
+
             if (ctx.progressionManager) {
-                const xp = isGolden ?
+                const baseXp = isGolden ?
                     ctx.progressionManager.getXPForAction('goldenWorm') :
                     ctx.progressionManager.getXPForAction('worm');
+                const xp = Math.round(baseXp * comboMultiplier);
                 ctx.progressionManager.addXP(xp, isGolden ? 'goldenWorm' : 'worm');
+            }
+
+            if (ctx.comboManager.isActive()) {
+                ctx.ui?.showCombo(ctx.comboManager.getStreak(), ctx.comboManager.getMultiplier());
+            } else {
+                ctx.ui?.hideCombo();
             }
 
             if (ctx.effectsManager && ctx.playerBird) {
@@ -127,9 +138,18 @@ export function setupNetworkCallbacks(ctx: NetworkCallbackContext): void {
                 ctx.playerBird.setWormCount(ctx.score);
             }
 
+            const flyComboMultiplier = ctx.comboManager.registerCollection(false);
+
             if (ctx.progressionManager) {
-                const xp = ctx.progressionManager.getXPForAction('fly');
+                const baseXp = ctx.progressionManager.getXPForAction('fly');
+                const xp = Math.round(baseXp * flyComboMultiplier);
                 ctx.progressionManager.addXP(xp, 'fly');
+            }
+
+            if (ctx.comboManager.isActive()) {
+                ctx.ui?.showCombo(ctx.comboManager.getStreak(), ctx.comboManager.getMultiplier());
+            } else {
+                ctx.ui?.hideCombo();
             }
 
             if (ctx.effectsManager && ctx.playerBird) {

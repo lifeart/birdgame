@@ -13,16 +13,16 @@ export const WORMS_PER_LOCATION = 20;
 export const MIN_WORMS_BEFORE_RESPAWN = 15;
 export const WORM_RESPAWN_INTERVAL_MS = 5000;
 
-export const FLIES_PER_LOCATION_MIN = 3;
-export const FLIES_PER_LOCATION_MAX = 5;
-export const MIN_FLIES_BEFORE_RESPAWN = 3;
+export const FLIES_PER_LOCATION_MIN = 8;
+export const FLIES_PER_LOCATION_MAX = 12;
+export const MIN_FLIES_BEFORE_RESPAWN = 6;
 export const FLY_RESPAWN_INTERVAL_MS = 10000;
 export const FLY_HEIGHT_MIN = 8;
 export const FLY_HEIGHT_MAX = 23;
 
 // Points
 export const WORM_POINTS = 1;
-export const FLY_POINTS = 2;
+export const FLY_POINTS = 4;
 export const GOLDEN_WORM_POINTS = 10;
 
 // Golden worm timing

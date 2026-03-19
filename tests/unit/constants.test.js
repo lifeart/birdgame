@@ -41,9 +41,9 @@ describe('shared constants', () => {
         });
 
         it('has correct fly settings', () => {
-            expect(constants.FLIES_PER_LOCATION_MIN).toBe(3);
-            expect(constants.FLIES_PER_LOCATION_MAX).toBe(5);
-            expect(constants.MIN_FLIES_BEFORE_RESPAWN).toBe(3);
+            expect(constants.FLIES_PER_LOCATION_MIN).toBe(8);
+            expect(constants.FLIES_PER_LOCATION_MAX).toBe(12);
+            expect(constants.MIN_FLIES_BEFORE_RESPAWN).toBe(6);
             expect(constants.FLY_RESPAWN_INTERVAL_MS).toBe(10000);
         });
 
@@ -58,8 +58,8 @@ describe('shared constants', () => {
             expect(constants.WORM_POINTS).toBe(1);
         });
 
-        it('fly gives 2 points', () => {
-            expect(constants.FLY_POINTS).toBe(2);
+        it('fly gives 4 points', () => {
+            expect(constants.FLY_POINTS).toBe(4);
         });
 
         it('golden worm gives 10 points', () => {
