@@ -39,7 +39,7 @@ export function createDefaultCameraOrbit(): CameraOrbitState {
         targetDistance: 12,
         minDistance: 5,
         maxDistance: 30,
-        minPitch: -0.1,
+        minPitch: 0.05,
         maxPitch: 0.8,
         // Cinematic camera state
         bankAngle: 0,

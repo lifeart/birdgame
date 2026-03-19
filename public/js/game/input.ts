@@ -256,7 +256,7 @@ export function createMouseHandlers(
             const deltaY = e.clientY - mouseState.lastMouseY;
 
             cameraOrbit.targetAngle -= deltaX * 0.005;
-            cameraOrbit.targetPitch += deltaY * 0.003;
+            cameraOrbit.targetPitch -= deltaY * 0.003;
             cameraOrbit.targetPitch = Math.max(
                 cameraOrbit.minPitch,
                 Math.min(cameraOrbit.maxPitch, cameraOrbit.targetPitch)
