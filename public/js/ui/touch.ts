@@ -813,8 +813,8 @@ export class TouchControls {
                 // Apply rotation from center movement
                 const deltaX = currentCenter.x - this.twoFingerCamera.lastCenter.x;
                 const deltaY = currentCenter.y - this.twoFingerCamera.lastCenter.y;
-                this.game.cameraOrbit.targetAngle -= deltaX * 0.006;
-                this.game.cameraOrbit.targetPitch -= deltaY * 0.004;
+                this.game.cameraOrbit.targetAngle -= deltaX * 0.008;
+                this.game.cameraOrbit.targetPitch -= deltaY * 0.006;
                 this.game.cameraOrbit.targetPitch = Math.max(
                     this.game.cameraOrbit.minPitch,
                     Math.min(this.game.cameraOrbit.maxPitch, this.game.cameraOrbit.targetPitch)
@@ -838,8 +838,8 @@ export class TouchControls {
                 const deltaX = touch.clientX - this.cameraTouch.lastX;
                 const deltaY = touch.clientY - this.cameraTouch.lastY;
 
-                this.game.cameraOrbit.targetAngle -= deltaX * 0.008;
-                this.game.cameraOrbit.targetPitch -= deltaY * 0.005;
+                this.game.cameraOrbit.targetAngle -= deltaX * 0.01;
+                this.game.cameraOrbit.targetPitch -= deltaY * 0.007;
                 this.game.cameraOrbit.targetPitch = Math.max(
                     this.game.cameraOrbit.minPitch,
                     Math.min(this.game.cameraOrbit.maxPitch, this.game.cameraOrbit.targetPitch)

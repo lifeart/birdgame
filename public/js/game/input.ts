@@ -255,8 +255,8 @@ export function createMouseHandlers(
             const deltaX = e.clientX - mouseState.lastMouseX;
             const deltaY = e.clientY - mouseState.lastMouseY;
 
-            cameraOrbit.targetAngle -= deltaX * 0.005;
-            cameraOrbit.targetPitch -= deltaY * 0.003;
+            cameraOrbit.targetAngle -= deltaX * 0.008;
+            cameraOrbit.targetPitch -= deltaY * 0.005;
             cameraOrbit.targetPitch = Math.max(
                 cameraOrbit.minPitch,
                 Math.min(cameraOrbit.maxPitch, cameraOrbit.targetPitch)
@@ -294,7 +294,7 @@ export function createMouseHandlers(
 
         // Handle horizontal scroll (two-finger swipe on touchpad) for camera rotation
         if (Math.abs(e.deltaX) > 0.5) {
-            const rotationSpeed = 0.004;
+            const rotationSpeed = 0.007;
             cameraOrbit.targetAngle -= e.deltaX * rotationSpeed;
 
             if (cameraMode.current === CAMERA_MODES.FOLLOW) {
@@ -310,7 +310,7 @@ export function createMouseHandlers(
 
         // Vertical scroll for zoom
         if (Math.abs(e.deltaY) > 0) {
-            const zoomSpeed = 0.002;
+            const zoomSpeed = 0.004;
             cameraOrbit.targetDistance += e.deltaY * zoomSpeed * cameraOrbit.targetDistance;
             cameraOrbit.targetDistance = Math.max(
                 cameraOrbit.minDistance,

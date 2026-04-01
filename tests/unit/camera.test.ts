@@ -30,10 +30,10 @@ describe('createDefaultCameraOrbit', () => {
         expect(orbit.targetDistance).toBe(12);
     });
 
-    it('has minPitch=0.05 and maxPitch=0.8', () => {
+    it('has minPitch=0.05 and maxPitch=0.75', () => {
         const orbit = createDefaultCameraOrbit();
         expect(orbit.minPitch).toBe(0.05);
-        expect(orbit.maxPitch).toBe(0.8);
+        expect(orbit.maxPitch).toBe(0.75);
     });
 
     it('initializes cinematic state to neutral', () => {
@@ -442,5 +442,181 @@ describe('pitch safety', () => {
             expect(orbit.pitch).toBeGreaterThanOrEqual(orbit.minPitch);
             expect(orbit.pitch).toBeLessThanOrEqual(orbit.maxPitch);
         }
+    });
+});
+
+describe('camera orientation stability', () => {
+    function getCameraWorldUp(camera: THREE.PerspectiveCamera): THREE.Vector3 {
+        return new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+    }
+
+    it('camera never flips upside-down at various pitch/angle/bankAngle values', () => {
+        const camera = makeCamera();
+        const birdPos = new THREE.Vector3(0, 10, 0);
+
+        const pitchValues = [0.05, 0.1, 0.25, 0.5, 0.7];
+        const angleValues = [0, Math.PI / 4, Math.PI / 2, Math.PI, -Math.PI / 3];
+        const bankValues = [0, 0.05, 0.1, 0.15, -0.15];
+
+        for (const pitch of pitchValues) {
+            for (const angle of angleValues) {
+                for (const bank of bankValues) {
+                    const orbit = makeOrbit({
+                        pitch,
+                        targetPitch: pitch,
+                        angle,
+                        targetAngle: angle,
+                        bankAngle: bank,
+                    });
+
+                    for (let i = 0; i < 50; i++) {
+                        updateCamera(camera, orbit, CAMERA_MODES.FOLLOW, birdPos, -angle);
+                    }
+
+                    const up = getCameraWorldUp(camera);
+                    expect(up.y).toBeGreaterThan(0);
+                }
+            }
+        }
+    });
+
+    it('camera Y stays above bird at max pitch after many iterations', () => {
+        const camera = makeCamera();
+        const orbit = makeOrbit();
+        orbit.targetPitch = orbit.maxPitch;
+        orbit.pitch = orbit.maxPitch;
+        const birdPos = new THREE.Vector3(0, 10, 0);
+
+        for (let i = 0; i < 500; i++) {
+            updateCamera(camera, orbit, CAMERA_MODES.FOLLOW, birdPos, 0);
+        }
+
+        expect(camera.position.y).toBeGreaterThan(birdPos.y);
+    });
+
+    it('bank angle at extreme values does not cause camera flip in follow mode', () => {
+        const camera = makeCamera();
+        const orbit = makeOrbit({ bankAngle: 0.15 });
+        const birdPos = new THREE.Vector3(0, 10, 0);
+
+        // Simulate high turn velocity in follow mode
+        for (let i = 0; i < 300; i++) {
+            updateCamera(
+                camera, orbit, CAMERA_MODES.FOLLOW, birdPos, i * 0.02,
+                undefined,
+                0.2,  // high rotation velocity
+                5,    // bird speed
+                10    // max speed
+            );
+        }
+
+        const up = getCameraWorldUp(camera);
+        expect(up.y).toBeGreaterThan(0);
+    });
+
+    it('continuous rotation over 500+ frames does not cause camera flip', () => {
+        const camera = makeCamera();
+        const orbit = makeOrbit();
+        const birdPos = new THREE.Vector3(0, 10, 0);
+
+        for (let i = 0; i < 600; i++) {
+            const birdRotation = i * 0.05; // continuous rotation
+            updateCamera(
+                camera, orbit, CAMERA_MODES.FOLLOW, birdPos, birdRotation,
+                undefined,
+                0.05, // moderate rotation velocity
+                3,
+                10
+            );
+
+            const up = getCameraWorldUp(camera);
+            expect(up.y).toBeGreaterThan(0);
+        }
+    });
+
+    it('high pitch + bank angle combination remains stable', () => {
+        const camera = makeCamera();
+        const orbit = makeOrbit();
+        orbit.targetPitch = orbit.maxPitch;
+        orbit.pitch = orbit.maxPitch;
+        orbit.bankAngle = 0.15;
+        const birdPos = new THREE.Vector3(0, 10, 0);
+
+        // First converge the camera to the high-pitch position with no rotation
+        for (let i = 0; i < 200; i++) {
+            updateCamera(camera, orbit, CAMERA_MODES.FOLLOW, birdPos, 0);
+        }
+
+        // Verify converged position is above bird
+        expect(camera.position.y).toBeGreaterThan(birdPos.y);
+
+        // Now apply continuous rotation with high turn velocity and bank
+        for (let i = 0; i < 300; i++) {
+            updateCamera(
+                camera, orbit, CAMERA_MODES.FOLLOW, birdPos, i * 0.03,
+                undefined,
+                0.15,  // high turn velocity
+                8,
+                10
+            );
+
+            const up = getCameraWorldUp(camera);
+            expect(up.y).toBeGreaterThan(0);
+        }
+
+        // After settling, camera should still be above bird
+        for (let i = 0; i < 200; i++) {
+            updateCamera(camera, orbit, CAMERA_MODES.FOLLOW, birdPos, 0);
+        }
+        expect(camera.position.y).toBeGreaterThan(birdPos.y);
+    });
+
+    it('camera has positive horizontalDist at all valid pitches', () => {
+        const orbit = makeOrbit();
+        const minPitch = orbit.minPitch;
+        const maxPitch = orbit.maxPitch;
+
+        // Sample pitches across the full valid range
+        const steps = 100;
+        for (let i = 0; i <= steps; i++) {
+            const pitch = minPitch + (maxPitch - minPitch) * (i / steps);
+            const horizontalDist = Math.cos(pitch * Math.PI / 2);
+            expect(horizontalDist).toBeGreaterThan(0);
+        }
+    });
+
+    it('orbit mode with extreme user angles does not flip camera', () => {
+        const camera = makeCamera();
+        const orbit = makeOrbit({
+            targetAngle: 100 * Math.PI,
+            angle: 100 * Math.PI,
+        });
+        const birdPos = new THREE.Vector3(0, 10, 0);
+
+        for (let i = 0; i < 200; i++) {
+            updateCamera(camera, orbit, CAMERA_MODES.ORBIT, birdPos, 0);
+        }
+
+        const up = getCameraWorldUp(camera);
+        expect(up.y).toBeGreaterThan(0);
+        expect(Number.isFinite(camera.position.x)).toBe(true);
+        expect(Number.isFinite(camera.position.y)).toBe(true);
+        expect(Number.isFinite(camera.position.z)).toBe(true);
+    });
+
+    it('maxPitch guarantees cos(pitch * PI/2) > 0 (never crosses 90 degrees vertical)', () => {
+        const orbit = makeOrbit();
+        const maxPitch = orbit.maxPitch;
+
+        // maxPitch * PI/2 must be less than PI/2 (i.e., maxPitch < 1.0)
+        // so cos(maxPitch * PI/2) > 0
+        expect(maxPitch).toBeLessThan(1.0);
+
+        const cosAtMax = Math.cos(maxPitch * Math.PI / 2);
+        expect(cosAtMax).toBeGreaterThan(0);
+
+        // Also verify at the boundary: even slightly above maxPitch would still be safe
+        // but the key guarantee is that maxPitch itself produces a positive cosine
+        expect(cosAtMax).toBeGreaterThan(0.01); // reasonable margin
     });
 });

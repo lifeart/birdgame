@@ -19,8 +19,8 @@ const CINEMATIC = {
     LOOK_AHEAD_SMOOTHING: 0.1,      // How fast look-ahead responds
 
     // Follow lag during turns
-    BASE_FOLLOW_RATE: 0.05,         // Normal follow rate
-    TURN_LAG_MULTIPLIER: 0.3,       // Reduce follow rate during turns (more lag)
+    BASE_FOLLOW_RATE: 0.12,         // Normal follow rate (snappier catch-up)
+    TURN_LAG_MULTIPLIER: 0.5,       // Reduce follow rate during turns (moderate lag)
 
     // Speed-based distance adjustment
     SPEED_DISTANCE_FACTOR: 0.5,     // Pull back slightly at high speeds
@@ -40,7 +40,7 @@ export function createDefaultCameraOrbit(): CameraOrbitState {
         minDistance: 5,
         maxDistance: 30,
         minPitch: 0.05,
-        maxPitch: 0.8,
+        maxPitch: 0.75,
         // Cinematic camera state
         bankAngle: 0,
         lateralOffset: 0,
@@ -180,10 +180,10 @@ export function updateCamera(
     orbit.targetPitch = Math.max(orbit.minPitch, Math.min(orbit.maxPitch, orbit.targetPitch));
 
     // Smooth interpolation for orbit angles
-    const smoothFactor = 0.12;
+    const smoothFactor = 0.25;
     orbit.angle += (orbit.targetAngle - orbit.angle) * smoothFactor;
-    orbit.pitch += (orbit.targetPitch - orbit.pitch) * 0.08;
-    orbit.distance += (orbit.targetDistance - orbit.distance) * 0.08;
+    orbit.pitch += (orbit.targetPitch - orbit.pitch) * 0.18;
+    orbit.distance += (orbit.targetDistance - orbit.distance) * 0.15;
 
     // Clamp pitch after interpolation as well
     orbit.pitch = Math.max(orbit.minPitch, Math.min(orbit.maxPitch, orbit.pitch));
@@ -204,7 +204,7 @@ export function updateCamera(
     targetZ += Math.cos(perpAngle) * orbit.lateralOffset;
 
     // Smooth camera movement
-    const moveFactor = 0.1;
+    const moveFactor = 0.22;
     camera.position.x += (targetX - camera.position.x) * moveFactor;
     camera.position.y += (targetY - camera.position.y) * moveFactor;
     camera.position.z += (targetZ - camera.position.z) * moveFactor;
@@ -214,10 +214,13 @@ export function updateCamera(
     const lookAtY = birdPos.y;
     const lookAtZ = birdPos.z + Math.cos(actualBirdRotation) * orbit.lookAheadOffset;
 
+    camera.up.set(0, 1, 0);
     camera.lookAt(lookAtX, lookAtY, lookAtZ);
 
-    // Apply camera roll (bank angle)
-    camera.rotation.z = orbit.bankAngle;
+    // Apply camera roll (bank angle) via local Z-axis rotation to avoid Euler gimbal issues
+    if (Math.abs(orbit.bankAngle) > 0.001) {
+        camera.rotateZ(orbit.bankAngle);
+    }
 }
 
 export function handleCameraKeyInput(
@@ -228,13 +231,13 @@ export function handleCameraKeyInput(
     let newMode = cameraMode;
 
     if (input.cameraLeft) {
-        orbit.targetAngle += 0.03;
+        orbit.targetAngle += 0.06;
         if (cameraMode === CAMERA_MODES.FOLLOW) {
             newMode = CAMERA_MODES.ORBIT;
         }
     }
     if (input.cameraRight) {
-        orbit.targetAngle -= 0.03;
+        orbit.targetAngle -= 0.06;
         if (cameraMode === CAMERA_MODES.FOLLOW) {
             newMode = CAMERA_MODES.ORBIT;
         }
