@@ -170,10 +170,11 @@ export function updateCamera(
             (CINEMATIC.MAX_LOOK_AHEAD - CINEMATIC.MIN_LOOK_AHEAD) * normalizedSpeed;
         orbit.lookAheadOffset += (targetLookAhead - orbit.lookAheadOffset) * CINEMATIC.LOOK_AHEAD_SMOOTHING;
     } else {
-        // Decay cinematic effects to neutral in non-follow modes (fast decay)
-        orbit.bankAngle *= 0.7;
-        orbit.lateralOffset *= 0.9;
-        orbit.lookAheadOffset += (CINEMATIC.MIN_LOOK_AHEAD - orbit.lookAheadOffset) * 0.1;
+        // Immediately zero cinematic effects in non-follow modes
+        // Gradual decay caused visible camera jarring during Q/E orbit transitions
+        orbit.bankAngle = 0;
+        orbit.lateralOffset = 0;
+        orbit.lookAheadOffset = CINEMATIC.MIN_LOOK_AHEAD;
     }
 
     // Clamp targetPitch to prevent camera from flipping upside-down
@@ -214,9 +215,9 @@ export function updateCamera(
     const lookAtY = birdPos.y;
     const lookAtZ = birdPos.z + Math.cos(actualBirdRotation) * orbit.lookAheadOffset;
 
-    // Apply camera roll (bank angle) by tilting the up vector before lookAt
-    // This avoids rotateZ/rotation.z issues that cause barrel roll artifacts
-    camera.up.set(Math.sin(orbit.bankAngle), Math.cos(orbit.bankAngle), 0);
+    // Always use world up — bank angle is purely cosmetic in follow mode
+    // and tilting the up vector in world space caused flips at certain orbit angles
+    camera.up.set(0, 1, 0);
     camera.lookAt(lookAtX, lookAtY, lookAtZ);
 }
 
