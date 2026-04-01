@@ -344,39 +344,40 @@ describe('cycleCameraMode', () => {
 
 describe('mouse direction pitch math', () => {
     // Tests for the pitch logic from createMouseHandlers mousemove
-    // We replicate the math: targetPitch -= deltaY * 0.003, then clamp
+    // GTA-style: positive movementY (mouse down) increases pitch (camera rises, looks down from above)
+    // We replicate the math: targetPitch += deltaY * 0.003, then clamp
 
     function applyMouseDragPitch(
         orbit: { targetPitch: number; minPitch: number; maxPitch: number },
         deltaY: number
     ) {
-        orbit.targetPitch -= deltaY * 0.003;
+        orbit.targetPitch += deltaY * 0.003;
         orbit.targetPitch = Math.max(orbit.minPitch, Math.min(orbit.maxPitch, orbit.targetPitch));
     }
 
-    it('positive deltaY (drag down) decreases targetPitch (camera looks down)', () => {
+    it('positive deltaY (mouse down) increases targetPitch (camera rises above bird)', () => {
         const orbit = { targetPitch: 0.5, minPitch: 0.05, maxPitch: 0.8 };
         const before = orbit.targetPitch;
-        applyMouseDragPitch(orbit, 100); // drag down
-        expect(orbit.targetPitch).toBeLessThan(before);
-    });
-
-    it('negative deltaY (drag up) increases targetPitch (camera looks up)', () => {
-        const orbit = { targetPitch: 0.5, minPitch: 0.05, maxPitch: 0.8 };
-        const before = orbit.targetPitch;
-        applyMouseDragPitch(orbit, -100); // drag up
+        applyMouseDragPitch(orbit, 100); // mouse down
         expect(orbit.targetPitch).toBeGreaterThan(before);
     });
 
-    it('pitch stays clamped after drag down past minimum', () => {
+    it('negative deltaY (mouse up) decreases targetPitch (camera lowers toward bird)', () => {
+        const orbit = { targetPitch: 0.5, minPitch: 0.05, maxPitch: 0.8 };
+        const before = orbit.targetPitch;
+        applyMouseDragPitch(orbit, -100); // mouse up
+        expect(orbit.targetPitch).toBeLessThan(before);
+    });
+
+    it('pitch stays clamped after mouse up past minimum', () => {
         const orbit = { targetPitch: 0.1, minPitch: 0.05, maxPitch: 0.8 };
-        applyMouseDragPitch(orbit, 1000); // massive drag down
+        applyMouseDragPitch(orbit, -1000); // massive mouse up
         expect(orbit.targetPitch).toBe(orbit.minPitch);
     });
 
-    it('pitch stays clamped after drag up past maximum', () => {
+    it('pitch stays clamped after mouse down past maximum', () => {
         const orbit = { targetPitch: 0.7, minPitch: 0.05, maxPitch: 0.8 };
-        applyMouseDragPitch(orbit, -1000); // massive drag up
+        applyMouseDragPitch(orbit, 1000); // massive mouse down
         expect(orbit.targetPitch).toBe(orbit.maxPitch);
     });
 });

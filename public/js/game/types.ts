@@ -95,6 +95,7 @@ export interface BoundHandlers {
     wheel: ((e: WheelEvent) => void) | null;
     contextmenu: ((e: Event) => void) | null;
     resize: (() => void) | null;
+    pointerLockChange: (() => void) | null;
 }
 
 // Game dependencies (global instances)

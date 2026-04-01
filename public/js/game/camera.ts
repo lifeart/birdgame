@@ -170,8 +170,8 @@ export function updateCamera(
             (CINEMATIC.MAX_LOOK_AHEAD - CINEMATIC.MIN_LOOK_AHEAD) * normalizedSpeed;
         orbit.lookAheadOffset += (targetLookAhead - orbit.lookAheadOffset) * CINEMATIC.LOOK_AHEAD_SMOOTHING;
     } else {
-        // Decay cinematic effects to neutral in non-follow modes
-        orbit.bankAngle *= 0.9;
+        // Decay cinematic effects to neutral in non-follow modes (fast decay)
+        orbit.bankAngle *= 0.7;
         orbit.lateralOffset *= 0.9;
         orbit.lookAheadOffset += (CINEMATIC.MIN_LOOK_AHEAD - orbit.lookAheadOffset) * 0.1;
     }
@@ -179,10 +179,10 @@ export function updateCamera(
     // Clamp targetPitch to prevent camera from flipping upside-down
     orbit.targetPitch = Math.max(orbit.minPitch, Math.min(orbit.maxPitch, orbit.targetPitch));
 
-    // Smooth interpolation for orbit angles
-    const smoothFactor = 0.25;
+    // Smooth interpolation for orbit angles (high factors for near-instant mouse response)
+    const smoothFactor = 0.5;
     orbit.angle += (orbit.targetAngle - orbit.angle) * smoothFactor;
-    orbit.pitch += (orbit.targetPitch - orbit.pitch) * 0.18;
+    orbit.pitch += (orbit.targetPitch - orbit.pitch) * 0.4;
     orbit.distance += (orbit.targetDistance - orbit.distance) * 0.15;
 
     // Clamp pitch after interpolation as well
@@ -204,7 +204,7 @@ export function updateCamera(
     targetZ += Math.cos(perpAngle) * orbit.lateralOffset;
 
     // Smooth camera movement
-    const moveFactor = 0.22;
+    const moveFactor = 0.3;
     camera.position.x += (targetX - camera.position.x) * moveFactor;
     camera.position.y += (targetY - camera.position.y) * moveFactor;
     camera.position.z += (targetZ - camera.position.z) * moveFactor;
@@ -214,13 +214,10 @@ export function updateCamera(
     const lookAtY = birdPos.y;
     const lookAtZ = birdPos.z + Math.cos(actualBirdRotation) * orbit.lookAheadOffset;
 
-    camera.up.set(0, 1, 0);
+    // Apply camera roll (bank angle) by tilting the up vector before lookAt
+    // This avoids rotateZ/rotation.z issues that cause barrel roll artifacts
+    camera.up.set(Math.sin(orbit.bankAngle), Math.cos(orbit.bankAngle), 0);
     camera.lookAt(lookAtX, lookAtY, lookAtZ);
-
-    // Apply camera roll (bank angle) via local Z-axis rotation to avoid Euler gimbal issues
-    if (Math.abs(orbit.bankAngle) > 0.001) {
-        camera.rotateZ(orbit.bankAngle);
-    }
 }
 
 export function handleCameraKeyInput(

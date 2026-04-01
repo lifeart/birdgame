@@ -123,7 +123,7 @@ export class Game {
     private dailyRewardTimeout: ReturnType<typeof setTimeout> | null = null;
     private loadingTimeout: ReturnType<typeof setTimeout> | null = null;
 
-    private boundHandlers: BoundHandlers & { blur: (() => void) | null } = {
+    private boundHandlers: BoundHandlers & { blur: (() => void) | null; pointerLockChange: (() => void) | null } = {
         keydown: null,
         keyup: null,
         mousedown: null,
@@ -132,7 +132,8 @@ export class Game {
         wheel: null,
         contextmenu: null,
         resize: null,
-        blur: null
+        blur: null,
+        pointerLockChange: null
     };
 
     constructor(deps: GameDependencies) {
@@ -306,11 +307,25 @@ export class Game {
         this.boundHandlers.wheel = handlers.wheel;
         this.boundHandlers.contextmenu = handlers.contextmenu;
 
+        // Pointer lock change: update input state and pause when pointer is released mid-game
+        this.boundHandlers.pointerLockChange = () => {
+            handlers.pointerLockChange();
+            const locked = document.pointerLockElement === canvas;
+            this.input.pointerLocked = locked;
+            // If pointer was unlocked (e.g. ESC) and game is running and not already paused, pause
+            if (!locked && this.isRunning && !this.paused && !this.ui?.isPauseMenuOpen()) {
+                this.ui?.showPauseMenu();
+                this.paused = true;
+                this.audioManager?.playPause();
+            }
+        };
+
         canvas.addEventListener('mousedown', this.boundHandlers.mousedown);
         window.addEventListener('mouseup', this.boundHandlers.mouseup);
         window.addEventListener('mousemove', this.boundHandlers.mousemove);
         canvas.addEventListener('wheel', this.boundHandlers.wheel, { passive: false });
         canvas.addEventListener('contextmenu', this.boundHandlers.contextmenu);
+        document.addEventListener('pointerlockchange', this.boundHandlers.pointerLockChange);
     }
 
     private resetCamera(): void {
@@ -363,6 +378,10 @@ export class Game {
         this.ui.on('resumeGame', () => {
             this.paused = false;
             this.audioManager?.playResume();
+            // Re-lock pointer on resume
+            if (this.renderer && !document.pointerLockElement) {
+                this.renderer.domElement.requestPointerLock();
+            }
         });
 
         this.ui.on('createRoom', (data: { playerName: string; bird: string; location: string }) => {
@@ -685,6 +704,14 @@ export class Game {
         }
         if (this.boundHandlers.blur) {
             window.removeEventListener('blur', this.boundHandlers.blur);
+        }
+        if (this.boundHandlers.pointerLockChange) {
+            document.removeEventListener('pointerlockchange', this.boundHandlers.pointerLockChange);
+        }
+
+        // Exit pointer lock on cleanup
+        if (document.pointerLockElement) {
+            document.exitPointerLock();
         }
 
         const canvas = this.renderer?.domElement;

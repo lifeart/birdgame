@@ -110,6 +110,10 @@ export function createKeydownHandler(
             case 'Enter':
                 if (!isPaused()) {
                     callbacks.resetInput();
+                    // Exit pointer lock so user can type in chat
+                    if (document.pointerLockElement) {
+                        document.exitPointerLock();
+                    }
                     deps.ui.openChat();
                 }
                 break;
@@ -118,6 +122,10 @@ export function createKeydownHandler(
                     deps.ui.hidePauseMenu();
                     callbacks.onResume();
                 } else if (!isPaused()) {
+                    // Exit pointer lock when pausing
+                    if (document.pointerLockElement) {
+                        document.exitPointerLock();
+                    }
                     deps.ui.showPauseMenu();
                     callbacks.onPause();
                 }
@@ -218,65 +226,49 @@ export function createMouseHandlers(
     mousemove: (e: MouseEvent) => void;
     wheel: (e: WheelEvent) => void;
     contextmenu: (e: Event) => void;
+    pointerLockChange: () => void;
 } {
+    // Click canvas → request pointer lock (GTA V style)
     const mousedown = (e: MouseEvent) => {
-        // Support left (0), middle (1), and right (2) click for camera drag
-        // Left-click only works when not over UI elements
-        if (e.button === 0 || e.button === 1 || e.button === 2) {
-            // For left-click, check if target is the canvas (not UI)
-            if (e.button === 0 && e.target !== canvas) {
-                return;
-            }
-
-            mouseState.isDragging = true;
-            mouseState.dragButton = e.button;
-            mouseState.lastMouseX = e.clientX;
-            mouseState.lastMouseY = e.clientY;
-            canvas.style.cursor = 'grabbing';
-
-            // Prevent default for right and middle click
-            if (e.button === 1 || e.button === 2) {
-                e.preventDefault();
+        if (e.button === 0 && e.target === canvas) {
+            if (!document.pointerLockElement) {
+                canvas.requestPointerLock();
             }
         }
     };
 
-    const mouseup = (e: MouseEvent) => {
-        // Release drag if the released button matches the one that started the drag
-        if (mouseState.isDragging && mouseState.dragButton === e.button) {
-            mouseState.isDragging = false;
-            mouseState.dragButton = null;
-            canvas.style.cursor = 'default';
-        }
+    // No-op mouseup (pointer lock doesn't need drag tracking)
+    const mouseup = (_e: MouseEvent) => {};
+
+    // Pointer lock change — track lock state via isDragging for backward compat
+    const pointerLockChange = () => {
+        mouseState.isDragging = document.pointerLockElement === canvas;
     };
 
+    // Mouse move — when pointer locked, use movementX/Y directly for camera orbit
     const mousemove = (e: MouseEvent) => {
-        if (mouseState.isDragging) {
-            const deltaX = e.clientX - mouseState.lastMouseX;
-            const deltaY = e.clientY - mouseState.lastMouseY;
+        if (document.pointerLockElement !== canvas) return;
 
-            cameraOrbit.targetAngle -= deltaX * 0.008;
-            cameraOrbit.targetPitch -= deltaY * 0.005;
-            cameraOrbit.targetPitch = Math.max(
-                cameraOrbit.minPitch,
-                Math.min(cameraOrbit.maxPitch, cameraOrbit.targetPitch)
-            );
+        const sensitivity = 0.003;
+        cameraOrbit.targetAngle -= e.movementX * sensitivity;
+        cameraOrbit.targetPitch += e.movementY * sensitivity;
+        cameraOrbit.targetPitch = Math.max(
+            cameraOrbit.minPitch,
+            Math.min(cameraOrbit.maxPitch, cameraOrbit.targetPitch)
+        );
 
-            if (cameraMode.current === CAMERA_MODES.FOLLOW) {
-                // Use unified setter if available, otherwise fall back to direct assignment
-                if (setCameraMode) {
-                    setCameraMode(CAMERA_MODES.ORBIT);
-                } else {
-                    cameraMode.current = CAMERA_MODES.ORBIT;
-                }
-                ui.showCameraMode('Orbit');
+        // Switch to orbit mode on mouse input
+        if (cameraMode.current === CAMERA_MODES.FOLLOW) {
+            if (setCameraMode) {
+                setCameraMode(CAMERA_MODES.ORBIT);
+            } else {
+                cameraMode.current = CAMERA_MODES.ORBIT;
             }
-
-            mouseState.lastMouseX = e.clientX;
-            mouseState.lastMouseY = e.clientY;
+            ui.showCameraMode('Orbit');
         }
     };
 
+    // Wheel for zoom — works even without pointer lock
     const wheel = (e: WheelEvent) => {
         e.preventDefault();
 
@@ -298,7 +290,6 @@ export function createMouseHandlers(
             cameraOrbit.targetAngle -= e.deltaX * rotationSpeed;
 
             if (cameraMode.current === CAMERA_MODES.FOLLOW) {
-                // Use unified setter if available, otherwise fall back to direct assignment
                 if (setCameraMode) {
                     setCameraMode(CAMERA_MODES.ORBIT);
                 } else {
@@ -321,5 +312,5 @@ export function createMouseHandlers(
 
     const contextmenu = (e: Event) => e.preventDefault();
 
-    return { mousedown, mouseup, mousemove, wheel, contextmenu };
+    return { mousedown, mouseup, mousemove, wheel, contextmenu, pointerLockChange };
 }
