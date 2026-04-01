@@ -212,8 +212,8 @@ describe('createMouseHandlers (pointer lock)', () => {
         });
     });
 
-    describe('mode switch on mouse move', () => {
-        it('should switch from FOLLOW to ORBIT mode when mouse moves with pointer lock', () => {
+    describe('GTA-style: mouse stays in FOLLOW mode', () => {
+        it('should NOT switch to ORBIT when mouse moves in FOLLOW mode', () => {
             simulatePointerLock(canvas);
             cameraMode.current = CAMERA_MODES.FOLLOW;
             const setCameraMode = vi.fn();
@@ -224,32 +224,21 @@ describe('createMouseHandlers (pointer lock)', () => {
             Object.defineProperty(move, 'movementY', { value: 10 });
             handlers.mousemove(move);
 
-            expect(setCameraMode).toHaveBeenCalledWith(CAMERA_MODES.ORBIT);
-            expect(ui.showCameraMode).toHaveBeenCalledWith('Orbit');
+            expect(setCameraMode).not.toHaveBeenCalled();
+            expect(cameraMode.current).toBe(CAMERA_MODES.FOLLOW);
         });
 
-        it('should set cameraMode.current directly if no setCameraMode callback', () => {
+        it('should still update camera angles in FOLLOW mode', () => {
             simulatePointerLock(canvas);
             cameraMode.current = CAMERA_MODES.FOLLOW;
 
+            const initialAngle = cameraOrbit.targetAngle;
             const move = new MouseEvent('mousemove');
-            Object.defineProperty(move, 'movementX', { value: 10 });
-            Object.defineProperty(move, 'movementY', { value: 10 });
+            Object.defineProperty(move, 'movementX', { value: 50 });
+            Object.defineProperty(move, 'movementY', { value: 0 });
             handlers.mousemove(move);
 
-            expect(cameraMode.current).toBe(CAMERA_MODES.ORBIT);
-        });
-
-        it('should NOT switch mode if already in ORBIT mode', () => {
-            simulatePointerLock(canvas);
-            cameraMode.current = CAMERA_MODES.ORBIT;
-
-            const move = new MouseEvent('mousemove');
-            Object.defineProperty(move, 'movementX', { value: 10 });
-            Object.defineProperty(move, 'movementY', { value: 10 });
-            handlers.mousemove(move);
-
-            expect(ui.showCameraMode).not.toHaveBeenCalled();
+            expect(cameraOrbit.targetAngle).not.toBe(initialAngle);
         });
     });
 

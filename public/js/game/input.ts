@@ -257,15 +257,8 @@ export function createMouseHandlers(
             Math.min(cameraOrbit.maxPitch, cameraOrbit.targetPitch)
         );
 
-        // Switch to orbit mode on mouse input
-        if (cameraMode.current === CAMERA_MODES.FOLLOW) {
-            if (setCameraMode) {
-                setCameraMode(CAMERA_MODES.ORBIT);
-            } else {
-                cameraMode.current = CAMERA_MODES.ORBIT;
-            }
-            ui.showCameraMode('Orbit');
-        }
+        // GTA-style: stay in FOLLOW mode — mouse offsets the angle temporarily,
+        // and auto-follow gradually pulls camera back behind the bird
     };
 
     // Wheel for zoom — works even without pointer lock
@@ -289,14 +282,7 @@ export function createMouseHandlers(
             const rotationSpeed = 0.007;
             cameraOrbit.targetAngle -= e.deltaX * rotationSpeed;
 
-            if (cameraMode.current === CAMERA_MODES.FOLLOW) {
-                if (setCameraMode) {
-                    setCameraMode(CAMERA_MODES.ORBIT);
-                } else {
-                    cameraMode.current = CAMERA_MODES.ORBIT;
-                }
-                ui.showCameraMode('Orbit');
-            }
+            // GTA-style: stay in FOLLOW, auto-follow pulls back
         }
 
         // Vertical scroll for zoom

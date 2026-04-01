@@ -331,9 +331,9 @@ export class Game {
     private resetCamera(): void {
         const birdRotation = this.playerBird ? this.playerBird.rotation : null;
         resetCameraOrbit(this.cameraOrbit, birdRotation);
-        // GTA-style: after reset, camera stays independent (ORBIT mode)
-        this.cameraMode = CAMERA_MODES.ORBIT;
-        this.ui?.showCameraMode('Camera Reset');
+        // GTA-style: reset returns to auto-follow behind bird
+        this.cameraMode = CAMERA_MODES.FOLLOW;
+        this.ui?.showCameraMode('Follow');
     }
 
     // Public for GameInterface (TouchControls)
