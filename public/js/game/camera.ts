@@ -227,16 +227,16 @@ export function updateCamera(
         targetY = Math.max(targetY, birdPos.y - 2);
     }
 
-    // Smooth camera movement (frame-rate independent)
-    const moveSmoothFactor = smooth(0.3, delta);
-    camera.position.x += (targetX - camera.position.x) * moveSmoothFactor;
-    camera.position.y += (targetY - camera.position.y) * moveSmoothFactor;
-    camera.position.z += (targetZ - camera.position.z) * moveSmoothFactor;
+    // X/Z position directly from orbit params (already smooth via angle/distance interpolation)
+    // Only Y is smoothed separately for height transitions
+    camera.position.x = targetX;
+    camera.position.z = targetZ;
+    camera.position.y += (targetY - camera.position.y) * smooth(0.3, delta);
 
-    // Always look at the bird's center — offset look-ahead caused geometric roll
-    // accumulation during orbiting (camera rolled 180° over a full circle)
+    // Look at bird's body center (not feet) for more horizontal view
+    // Reduces ground-rotation effect during horizontal orbiting
     camera.up.set(0, 1, 0);
-    camera.lookAt(birdPos.x, birdPos.y, birdPos.z);
+    camera.lookAt(birdPos.x, birdPos.y + heightOffset * 0.5, birdPos.z);
 }
 
 export function handleCameraKeyInput(
