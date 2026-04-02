@@ -39,6 +39,7 @@ function makeCameraOrbit() {
         maxPitch: 1.2,
         minDistance: 5,
         maxDistance: 50,
+        lastManualInputTime: 0,
     };
 }
 

@@ -5,18 +5,9 @@ import { CAMERA_MODES, type CameraMode } from '../ui/index.ts';
 
 // Cinematic camera configuration
 const CINEMATIC = {
-    // Camera banking during turns (roll)
-    MAX_BANK_ANGLE: 0.15,           // Max roll in radians (~8.5 degrees)
-    BANK_SMOOTHING: 0.08,           // How fast bank responds
-
     // Lateral offset (camera moves to outside of turn)
     MAX_LATERAL_OFFSET: 2.5,        // Max sideways offset
-    LATERAL_SMOOTHING: 0.06,        // How fast offset responds
-
-    // Dynamic look-ahead based on speed
-    MIN_LOOK_AHEAD: 2,              // Look-ahead when stationary
-    MAX_LOOK_AHEAD: 8,              // Look-ahead at max speed
-    LOOK_AHEAD_SMOOTHING: 0.1,      // How fast look-ahead responds
+    LATERAL_SMOOTHING: 0.12,        // How fast offset responds (snappier re-centering)
 
     // Follow lag during turns
     BASE_FOLLOW_RATE: 0.12,         // Normal follow rate (snappier catch-up)
@@ -42,9 +33,8 @@ export function createDefaultCameraOrbit(): CameraOrbitState {
         minPitch: 0.05,
         maxPitch: 0.75,
         // Cinematic camera state
-        bankAngle: 0,
         lateralOffset: 0,
-        lookAheadOffset: CINEMATIC.MIN_LOOK_AHEAD
+        lastManualInputTime: 0,
     };
 }
 
@@ -62,9 +52,7 @@ export function resetCameraOrbit(
     orbit.targetPitch = 0.25;
     orbit.targetDistance = 12;
     // Reset cinematic state
-    orbit.bankAngle = 0;
     orbit.lateralOffset = 0;
-    orbit.lookAheadOffset = CINEMATIC.MIN_LOOK_AHEAD;
 }
 
 // Get camera's world-facing angle for GTA-style movement
@@ -107,6 +95,11 @@ export function cycleCameraMode(
     return { newMode, modeName: modeNames[newMode] };
 }
 
+/** Frame-rate independent smoothing factor: given a per-frame factor tuned for 60fps, returns the correct factor for the current delta. */
+function smooth(factor: number, delta: number): number {
+    return 1 - Math.pow(1 - factor, delta * 60);
+}
+
 export function updateCamera(
     camera: THREE.PerspectiveCamera,
     orbit: CameraOrbitState,
@@ -116,7 +109,9 @@ export function updateCamera(
     birdVisualRotation?: number,
     birdRotationVelocity: number = 0,
     birdSpeed: number = 0,
-    birdMaxSpeed: number = 1
+    birdMaxSpeed: number = 1,
+    delta: number = 1 / 60,
+    checkCollision?: (pos: THREE.Vector3, radius: number) => string | null
 ): void {
     const actualBirdRotation = birdVisualRotation ?? birdRotation;
     const isFollowMode = cameraMode === CAMERA_MODES.FOLLOW;
@@ -137,57 +132,57 @@ export function updateCamera(
     // FOLLOW: Camera gently drifts behind bird with cinematic lag during turns
     // ORBIT/other: Camera stays exactly where user positioned it
     if (isFollowMode) {
-        const behindBirdAngle = -actualBirdRotation;
+        // Auto-center delay: don't start following until ~1s after last manual input
+        const timeSinceInput = (Date.now() - orbit.lastManualInputTime) / 1000;
+        const autoCenterDelay = 1.0; // seconds
 
-        let angleDiff = behindBirdAngle - orbit.targetAngle;
-        // Normalize angle to [-PI, PI] with iteration limit for safety
-        if (Number.isFinite(angleDiff)) {
-            let iterations = 0;
-            while (angleDiff > Math.PI && iterations < 4) { angleDiff -= Math.PI * 2; iterations++; }
-            while (angleDiff < -Math.PI && iterations < 8) { angleDiff += Math.PI * 2; iterations++; }
-        } else {
-            angleDiff = 0; // Fallback for NaN/Infinity
+        if (timeSinceInput > autoCenterDelay) {
+            const behindBirdAngle = -actualBirdRotation;
+
+            let angleDiff = behindBirdAngle - orbit.targetAngle;
+            // Normalize angle to [-PI, PI] with iteration limit for safety
+            if (Number.isFinite(angleDiff)) {
+                let iterations = 0;
+                while (angleDiff > Math.PI && iterations < 4) { angleDiff -= Math.PI * 2; iterations++; }
+                while (angleDiff < -Math.PI && iterations < 8) { angleDiff += Math.PI * 2; iterations++; }
+            } else {
+                angleDiff = 0; // Fallback for NaN/Infinity
+            }
+
+            // Cinematic: Slower follow during turns creates tension
+            const turnLag = 1 - (absTurnIntensity * (1 - CINEMATIC.TURN_LAG_MULTIPLIER));
+            const followRate = CINEMATIC.BASE_FOLLOW_RATE * turnLag;
+            orbit.targetAngle += angleDiff * followRate * delta * 60;
         }
-
-        // Cinematic: Slower follow during turns creates tension
-        const turnLag = 1 - (absTurnIntensity * (1 - CINEMATIC.TURN_LAG_MULTIPLIER));
-        const followRate = CINEMATIC.BASE_FOLLOW_RATE * turnLag;
-        orbit.targetAngle += angleDiff * followRate;
     }
 
     // Update cinematic effects (only in FOLLOW mode, decay to neutral otherwise)
     if (isFollowMode) {
-        // 1. Camera bank (roll into the turn like a motorcycle/plane)
-        const targetBank = -turnIntensity * CINEMATIC.MAX_BANK_ANGLE * normalizedSpeed;
-        orbit.bankAngle += (targetBank - orbit.bankAngle) * CINEMATIC.BANK_SMOOTHING;
-
-        // 2. Lateral offset (camera moves to outside of turn for better view)
+        // Lateral offset (camera moves to outside of turn for better view)
         const targetLateral = turnIntensity * CINEMATIC.MAX_LATERAL_OFFSET * normalizedSpeed;
-        orbit.lateralOffset += (targetLateral - orbit.lateralOffset) * CINEMATIC.LATERAL_SMOOTHING;
-
-        // 3. Dynamic look-ahead based on speed
-        const targetLookAhead = CINEMATIC.MIN_LOOK_AHEAD +
-            (CINEMATIC.MAX_LOOK_AHEAD - CINEMATIC.MIN_LOOK_AHEAD) * normalizedSpeed;
-        orbit.lookAheadOffset += (targetLookAhead - orbit.lookAheadOffset) * CINEMATIC.LOOK_AHEAD_SMOOTHING;
+        orbit.lateralOffset += (targetLateral - orbit.lateralOffset) * smooth(CINEMATIC.LATERAL_SMOOTHING, delta);
     } else {
         // Immediately zero cinematic effects in non-follow modes
-        // Gradual decay caused visible camera jarring during Q/E orbit transitions
-        orbit.bankAngle = 0;
         orbit.lateralOffset = 0;
-        orbit.lookAheadOffset = CINEMATIC.MIN_LOOK_AHEAD;
     }
 
     // Clamp targetPitch to prevent camera from flipping upside-down
     orbit.targetPitch = Math.max(orbit.minPitch, Math.min(orbit.maxPitch, orbit.targetPitch));
 
-    // Smooth interpolation for orbit angles (high factors for near-instant mouse response)
-    const smoothFactor = 0.5;
-    orbit.angle += (orbit.targetAngle - orbit.angle) * smoothFactor;
-    orbit.pitch += (orbit.targetPitch - orbit.pitch) * 0.4;
-    orbit.distance += (orbit.targetDistance - orbit.distance) * 0.15;
+    // Smooth interpolation for orbit angles (frame-rate independent)
+    orbit.angle += (orbit.targetAngle - orbit.angle) * smooth(0.5, delta);
+    orbit.pitch += (orbit.targetPitch - orbit.pitch) * smooth(0.4, delta);
+    orbit.distance += (orbit.targetDistance - orbit.distance) * smooth(0.15, delta);
 
     // Clamp pitch after interpolation as well
     orbit.pitch = Math.max(orbit.minPitch, Math.min(orbit.maxPitch, orbit.pitch));
+
+    // Normalize angles to prevent floating-point drift during long sessions
+    if (Math.abs(orbit.angle) > 100) {
+        const norm = Math.round(orbit.angle / (2 * Math.PI)) * 2 * Math.PI;
+        orbit.angle -= norm;
+        orbit.targetAngle -= norm;
+    }
 
     // Calculate camera position on orbit sphere
     const effectiveDistance = orbit.distance + normalizedSpeed * CINEMATIC.SPEED_DISTANCE_FACTOR;
@@ -204,11 +199,40 @@ export function updateCamera(
     targetX += Math.sin(perpAngle) * orbit.lateralOffset;
     targetZ += Math.cos(perpAngle) * orbit.lateralOffset;
 
-    // Smooth camera movement
-    const moveFactor = 0.3;
-    camera.position.x += (targetX - camera.position.x) * moveFactor;
-    camera.position.y += (targetY - camera.position.y) * moveFactor;
-    camera.position.z += (targetZ - camera.position.z) * moveFactor;
+    // Spring arm: pull camera forward if it would collide with world geometry
+    if (checkCollision) {
+        const cameraTarget = new THREE.Vector3(targetX, targetY, targetZ);
+        if (checkCollision(cameraTarget, 1.0)) {
+            // Binary search for safe distance along bird->camera ray
+            const dir = cameraTarget.clone().sub(birdPos).normalize();
+            let safeDist = 0;
+            let testDist = effectiveDistance;
+            for (let i = 0; i < 8; i++) {
+                const mid = (safeDist + testDist) / 2;
+                const testPos = birdPos.clone().addScaledVector(dir, mid);
+                testPos.y = targetY; // keep height
+                if (checkCollision(testPos, 1.0)) {
+                    testDist = mid;
+                } else {
+                    safeDist = mid;
+                }
+            }
+            // Use safe position
+            const safePos = birdPos.clone().addScaledVector(dir, safeDist);
+            targetX = safePos.x;
+            targetZ = safePos.z;
+            // Don't change targetY — keep camera height
+        }
+
+        // Also prevent camera from going below ground
+        targetY = Math.max(targetY, birdPos.y - 2);
+    }
+
+    // Smooth camera movement (frame-rate independent)
+    const moveSmoothFactor = smooth(0.3, delta);
+    camera.position.x += (targetX - camera.position.x) * moveSmoothFactor;
+    camera.position.y += (targetY - camera.position.y) * moveSmoothFactor;
+    camera.position.z += (targetZ - camera.position.z) * moveSmoothFactor;
 
     // Always look at the bird's center — offset look-ahead caused geometric roll
     // accumulation during orbiting (camera rolled 180° over a full circle)
@@ -219,18 +243,22 @@ export function updateCamera(
 export function handleCameraKeyInput(
     input: { cameraLeft: boolean; cameraRight: boolean },
     orbit: CameraOrbitState,
-    cameraMode: CameraMode
+    cameraMode: CameraMode,
+    delta: number = 1 / 60
 ): CameraMode {
     let newMode = cameraMode;
+    const rotSpeed = 0.06 * delta * 60; // 0.06 at 60fps
 
     if (input.cameraLeft) {
-        orbit.targetAngle += 0.06;
+        orbit.targetAngle += rotSpeed;
+        orbit.lastManualInputTime = Date.now();
         if (cameraMode === CAMERA_MODES.FOLLOW) {
             newMode = CAMERA_MODES.ORBIT;
         }
     }
     if (input.cameraRight) {
-        orbit.targetAngle -= 0.06;
+        orbit.targetAngle -= rotSpeed;
+        orbit.lastManualInputTime = Date.now();
         if (cameraMode === CAMERA_MODES.FOLLOW) {
             newMode = CAMERA_MODES.ORBIT;
         }

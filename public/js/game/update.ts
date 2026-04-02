@@ -135,7 +135,7 @@ export function update(ctx: UpdateContext, delta: number): void {
     }
 
     // Update camera controls from keyboard
-    const newCameraMode = handleCameraKeyInput(ctx.input, ctx.cameraOrbit, ctx.cameraMode);
+    const newCameraMode = handleCameraKeyInput(ctx.input, ctx.cameraOrbit, ctx.cameraMode, delta);
     ctx.setCameraMode(newCameraMode);
 
     // Update camera (GTA-style: no pointer lock needed)
@@ -150,7 +150,9 @@ export function update(ctx: UpdateContext, delta: number): void {
             ctx.playerBird.getVisualRotation(),
             ctx.playerBird.rotationVelocity,
             ctx.playerBird.horizontalSpeed,
-            ctx.playerBird.currentMaxSpeed
+            ctx.playerBird.currentMaxSpeed,
+            delta,
+            ctx.world ? (pos, radius) => ctx.world!.checkCollision(pos, radius) : undefined
         );
     }
 

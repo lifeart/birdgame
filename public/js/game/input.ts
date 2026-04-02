@@ -215,7 +215,7 @@ export interface MouseHandlerState {
 
 export function createMouseHandlers(
     canvas: HTMLCanvasElement,
-    cameraOrbit: { targetAngle: number; targetPitch: number; targetDistance: number; minPitch: number; maxPitch: number; minDistance: number; maxDistance: number },
+    cameraOrbit: { targetAngle: number; targetPitch: number; targetDistance: number; minPitch: number; maxPitch: number; minDistance: number; maxDistance: number; lastManualInputTime: number },
     mouseState: MouseHandlerState,
     cameraMode: { current: CameraMode },
     ui: UIManager,
@@ -256,6 +256,7 @@ export function createMouseHandlers(
             cameraOrbit.minPitch,
             Math.min(cameraOrbit.maxPitch, cameraOrbit.targetPitch)
         );
+        cameraOrbit.lastManualInputTime = Date.now();
 
         // GTA-style: stay in FOLLOW mode — mouse offsets the angle temporarily,
         // and auto-follow gradually pulls camera back behind the bird

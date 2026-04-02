@@ -38,9 +38,8 @@ describe('createDefaultCameraOrbit', () => {
 
     it('initializes cinematic state to neutral', () => {
         const orbit = createDefaultCameraOrbit();
-        expect(orbit.bankAngle).toBe(0);
         expect(orbit.lateralOffset).toBe(0);
-        expect(orbit.lookAheadOffset).toBe(2); // MIN_LOOK_AHEAD
+        expect(orbit.lastManualInputTime).toBe(0);
     });
 });
 
@@ -68,11 +67,9 @@ describe('resetCameraOrbit', () => {
     });
 
     it('resets cinematic state', () => {
-        const orbit = makeOrbit({ bankAngle: 0.1, lateralOffset: 2, lookAheadOffset: 6 });
+        const orbit = makeOrbit({ lateralOffset: 2 });
         resetCameraOrbit(orbit, null);
-        expect(orbit.bankAngle).toBe(0);
         expect(orbit.lateralOffset).toBe(0);
-        expect(orbit.lookAheadOffset).toBe(2); // MIN_LOOK_AHEAD
     });
 });
 
@@ -194,9 +191,7 @@ describe('updateCamera', () => {
 
         updateCamera(camera, orbit, CAMERA_MODES.FOLLOW, birdPos, 0, undefined, NaN, 1, 2);
 
-        expect(Number.isFinite(orbit.bankAngle)).toBe(true);
         expect(Number.isFinite(orbit.lateralOffset)).toBe(true);
-        expect(Number.isFinite(orbit.lookAheadOffset)).toBe(true);
     });
 });
 
@@ -451,32 +446,28 @@ describe('camera orientation stability', () => {
         return new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
     }
 
-    it('camera never flips upside-down at various pitch/angle/bankAngle values', () => {
+    it('camera never flips upside-down at various pitch/angle values', () => {
         const camera = makeCamera();
         const birdPos = new THREE.Vector3(0, 10, 0);
 
         const pitchValues = [0.05, 0.1, 0.25, 0.5, 0.7];
         const angleValues = [0, Math.PI / 4, Math.PI / 2, Math.PI, -Math.PI / 3];
-        const bankValues = [0, 0.05, 0.1, 0.15, -0.15];
 
         for (const pitch of pitchValues) {
             for (const angle of angleValues) {
-                for (const bank of bankValues) {
-                    const orbit = makeOrbit({
-                        pitch,
-                        targetPitch: pitch,
-                        angle,
-                        targetAngle: angle,
-                        bankAngle: bank,
-                    });
+                const orbit = makeOrbit({
+                    pitch,
+                    targetPitch: pitch,
+                    angle,
+                    targetAngle: angle,
+                });
 
-                    for (let i = 0; i < 50; i++) {
-                        updateCamera(camera, orbit, CAMERA_MODES.FOLLOW, birdPos, -angle);
-                    }
-
-                    const up = getCameraWorldUp(camera);
-                    expect(up.y).toBeGreaterThan(0);
+                for (let i = 0; i < 50; i++) {
+                    updateCamera(camera, orbit, CAMERA_MODES.FOLLOW, birdPos, -angle);
                 }
+
+                const up = getCameraWorldUp(camera);
+                expect(up.y).toBeGreaterThan(0);
             }
         }
     });
@@ -495,9 +486,9 @@ describe('camera orientation stability', () => {
         expect(camera.position.y).toBeGreaterThan(birdPos.y);
     });
 
-    it('bank angle at extreme values does not cause camera flip in follow mode', () => {
+    it('high turn velocity does not cause camera flip in follow mode', () => {
         const camera = makeCamera();
-        const orbit = makeOrbit({ bankAngle: 0.15 });
+        const orbit = makeOrbit();
         const birdPos = new THREE.Vector3(0, 10, 0);
 
         // Simulate high turn velocity in follow mode
@@ -535,12 +526,11 @@ describe('camera orientation stability', () => {
         }
     });
 
-    it('high pitch + bank angle combination remains stable', () => {
+    it('high pitch + high turn velocity combination remains stable', () => {
         const camera = makeCamera();
         const orbit = makeOrbit();
         orbit.targetPitch = orbit.maxPitch;
         orbit.pitch = orbit.maxPitch;
-        orbit.bankAngle = 0.15;
         const birdPos = new THREE.Vector3(0, 10, 0);
 
         // First converge the camera to the high-pitch position with no rotation
@@ -619,5 +609,169 @@ describe('camera orientation stability', () => {
         // Also verify at the boundary: even slightly above maxPitch would still be safe
         // but the key guarantee is that maxPitch itself produces a positive cosine
         expect(cosAtMax).toBeGreaterThan(0.01); // reasonable margin
+    });
+});
+
+describe('camera roll during full orbit', () => {
+    // Measure camera roll: the angle of camera's local X axis projected onto XZ plane
+    // relative to what a "zero-roll" orbit camera would have.
+    // A simpler metric: camera's world up vector Y component should stay near 1
+    // and the angle between camera up and world up should stay consistent.
+    function getCameraRollDeg(camera: THREE.PerspectiveCamera): number {
+        // Camera's local Y axis in world space = camera "up" direction
+        const camUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+        // Camera's local Z axis in world space = camera "forward" (negated)
+        const camFwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+        // Project world up onto plane perpendicular to camera forward
+        const worldUp = new THREE.Vector3(0, 1, 0);
+        const projected = worldUp.clone().addScaledVector(camFwd, -worldUp.dot(camFwd)).normalize();
+        // Roll = angle between projected world-up and camera's up, in degrees
+        const dot = Math.max(-1, Math.min(1, camUp.dot(projected)));
+        return Math.acos(dot) * (180 / Math.PI);
+    }
+
+    it('ORBIT mode: zero roll at every angle during full 360° Q/E rotation', () => {
+        const camera = makeCamera();
+        const orbit = makeOrbit({ angle: 0, targetAngle: 0 });
+        const birdPos = new THREE.Vector3(0, 10, 0);
+
+        // Converge camera first
+        for (let i = 0; i < 100; i++) {
+            updateCamera(camera, orbit, CAMERA_MODES.ORBIT, birdPos, 0);
+        }
+
+        const initialRoll = getCameraRollDeg(camera);
+
+        // Simulate Q key: orbit full circle in small steps
+        const steps = 120; // full circle
+        const angleStep = (2 * Math.PI) / steps;
+        let maxRollDeviation = 0;
+
+        for (let i = 0; i < steps; i++) {
+            orbit.targetAngle += angleStep;
+            // Several sub-frames per step to let smoothing converge
+            for (let j = 0; j < 10; j++) {
+                updateCamera(camera, orbit, CAMERA_MODES.ORBIT, birdPos, 0);
+            }
+            const roll = getCameraRollDeg(camera);
+            const deviation = Math.abs(roll - initialRoll);
+            maxRollDeviation = Math.max(maxRollDeviation, deviation);
+        }
+
+        // Roll deviation should be < 2° at any point during full orbit
+        expect(maxRollDeviation).toBeLessThan(2);
+    });
+
+    it('ORBIT mode: camera up.y stays near 1 throughout full orbit', () => {
+        const camera = makeCamera();
+        const orbit = makeOrbit({ angle: 0, targetAngle: 0 });
+        const birdPos = new THREE.Vector3(0, 10, 0);
+
+        for (let i = 0; i < 100; i++) {
+            updateCamera(camera, orbit, CAMERA_MODES.ORBIT, birdPos, 0);
+        }
+
+        const steps = 120;
+        const angleStep = (2 * Math.PI) / steps;
+
+        for (let i = 0; i < steps; i++) {
+            orbit.targetAngle += angleStep;
+            for (let j = 0; j < 10; j++) {
+                updateCamera(camera, orbit, CAMERA_MODES.ORBIT, birdPos, 0);
+            }
+            const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+            // Camera up Y should remain strongly positive (close to 1, never near 0)
+            expect(up.y).toBeGreaterThan(0.5);
+        }
+    });
+
+    it('FOLLOW mode: bird 360° turn produces no net camera roll', () => {
+        const camera = makeCamera();
+        const orbit = makeOrbit();
+        const birdPos = new THREE.Vector3(0, 10, 0);
+
+        // Converge camera behind bird at rotation=0
+        for (let i = 0; i < 200; i++) {
+            updateCamera(camera, orbit, CAMERA_MODES.FOLLOW, birdPos, 0, undefined, 0, 5, 10);
+        }
+
+        const initialRoll = getCameraRollDeg(camera);
+
+        // Bird rotates full 360° with moderate speed and turn velocity
+        const steps = 360;
+        let maxRollDeviation = 0;
+
+        for (let i = 0; i < steps; i++) {
+            const birdRotation = (i / steps) * Math.PI * 2;
+            updateCamera(
+                camera, orbit, CAMERA_MODES.FOLLOW, birdPos, birdRotation,
+                undefined,
+                0.1,  // rotation velocity
+                5,    // speed
+                10    // max speed
+            );
+            const roll = getCameraRollDeg(camera);
+            maxRollDeviation = Math.max(maxRollDeviation, Math.abs(roll - initialRoll));
+        }
+
+        // Converge after full rotation
+        for (let i = 0; i < 200; i++) {
+            updateCamera(camera, orbit, CAMERA_MODES.FOLLOW, birdPos, 0, undefined, 0, 5, 10);
+        }
+
+        const finalRoll = getCameraRollDeg(camera);
+
+        // No net roll after full rotation (< 2°)
+        expect(Math.abs(finalRoll - initialRoll)).toBeLessThan(2);
+        // Max deviation during rotation should be limited (< 10°)
+        expect(maxRollDeviation).toBeLessThan(10);
+    });
+
+    it('FOLLOW mode with lateralOffset: no roll from position offset', () => {
+        const camera = makeCamera();
+        const orbit = makeOrbit({ lateralOffset: 2.5 }); // max lateral offset
+        const birdPos = new THREE.Vector3(0, 10, 0);
+
+        // Converge with lateral offset active
+        for (let i = 0; i < 200; i++) {
+            updateCamera(camera, orbit, CAMERA_MODES.FOLLOW, birdPos, 0, undefined, 0.2, 5, 10);
+        }
+
+        const roll = getCameraRollDeg(camera);
+        // Even with max lateral offset, roll should be small (< 5°)
+        expect(roll).toBeLessThan(5);
+    });
+
+    it('camera orientation after 360° matches orientation at start', () => {
+        const camera = makeCamera();
+        const orbit = makeOrbit({ angle: 0, targetAngle: 0 });
+        const birdPos = new THREE.Vector3(0, 10, 0);
+
+        // Converge
+        for (let i = 0; i < 100; i++) {
+            updateCamera(camera, orbit, CAMERA_MODES.ORBIT, birdPos, 0);
+        }
+
+        // Record starting quaternion
+        const startQuat = camera.quaternion.clone();
+
+        // Full orbit
+        const steps = 120;
+        const angleStep = (2 * Math.PI) / steps;
+        for (let i = 0; i < steps; i++) {
+            orbit.targetAngle += angleStep;
+            for (let j = 0; j < 10; j++) {
+                updateCamera(camera, orbit, CAMERA_MODES.ORBIT, birdPos, 0);
+            }
+        }
+
+        // Converge back at ~same angle (2π ≡ 0)
+        for (let i = 0; i < 100; i++) {
+            updateCamera(camera, orbit, CAMERA_MODES.ORBIT, birdPos, 0);
+        }
+
+        // Quaternions should be nearly identical (dot product close to ±1)
+        const dot = Math.abs(startQuat.dot(camera.quaternion));
+        expect(dot).toBeGreaterThan(0.99);
     });
 });
