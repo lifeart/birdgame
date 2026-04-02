@@ -775,3 +775,137 @@ describe('camera roll during full orbit', () => {
         expect(dot).toBeGreaterThan(0.99);
     });
 });
+
+describe('cylindrical orbit and horizon stability', () => {
+    it('camera maintains constant horizontal distance during full orbit', () => {
+        const camera = makeCamera();
+        const orbit = makeOrbit({ angle: 0, targetAngle: 0 });
+        const birdPos = new THREE.Vector3(0, 10, 0);
+
+        // Converge
+        for (let i = 0; i < 100; i++) {
+            updateCamera(camera, orbit, CAMERA_MODES.ORBIT, birdPos, 0);
+        }
+
+        const expectedDist = orbit.distance;
+        const steps = 120;
+        const angleStep = (2 * Math.PI) / steps;
+        let maxDistDeviation = 0;
+
+        for (let i = 0; i < steps; i++) {
+            orbit.targetAngle += angleStep;
+            // Let angle converge
+            for (let j = 0; j < 10; j++) {
+                updateCamera(camera, orbit, CAMERA_MODES.ORBIT, birdPos, 0);
+            }
+            // Measure horizontal distance (XZ only)
+            const dx = camera.position.x - birdPos.x;
+            const dz = camera.position.z - birdPos.z;
+            const horizDist = Math.sqrt(dx * dx + dz * dz);
+            maxDistDeviation = Math.max(maxDistDeviation, Math.abs(horizDist - expectedDist));
+        }
+
+        // Horizontal distance should stay constant (< 0.5 unit deviation)
+        expect(maxDistDeviation).toBeLessThan(0.5);
+    });
+
+    it('camera X/Z position matches orbit angle exactly (no smoothing lag)', () => {
+        const camera = makeCamera();
+        const orbit = makeOrbit({ angle: 0, targetAngle: 0 });
+        const birdPos = new THREE.Vector3(0, 10, 0);
+
+        // Converge
+        for (let i = 0; i < 100; i++) {
+            updateCamera(camera, orbit, CAMERA_MODES.ORBIT, birdPos, 0);
+        }
+
+        // Set angle directly and update one frame
+        orbit.angle = Math.PI / 4;
+        orbit.targetAngle = Math.PI / 4;
+        updateCamera(camera, orbit, CAMERA_MODES.ORBIT, birdPos, 0);
+
+        // Camera X/Z should be at sin/cos of angle * distance from bird
+        const expectedX = birdPos.x + Math.sin(Math.PI / 4) * orbit.distance;
+        const expectedZ = birdPos.z + Math.cos(Math.PI / 4) * orbit.distance;
+        expect(camera.position.x).toBeCloseTo(expectedX, 1);
+        expect(camera.position.z).toBeCloseTo(expectedZ, 1);
+    });
+
+    it('camera height varies with pitch but horizontal distance stays constant', () => {
+        const camera = makeCamera();
+        const birdPos = new THREE.Vector3(0, 10, 0);
+
+        const pitchValues = [0.05, 0.25, 0.5, 0.75];
+        const positions: { pitch: number; horizDist: number; y: number }[] = [];
+
+        for (const pitch of pitchValues) {
+            const orbit = makeOrbit({ pitch, targetPitch: pitch });
+            // Converge
+            for (let i = 0; i < 100; i++) {
+                updateCamera(camera, orbit, CAMERA_MODES.ORBIT, birdPos, 0);
+            }
+
+            const dx = camera.position.x - birdPos.x;
+            const dz = camera.position.z - birdPos.z;
+            const horizDist = Math.sqrt(dx * dx + dz * dz);
+            positions.push({ pitch, horizDist, y: camera.position.y });
+        }
+
+        // All horizontal distances should be approximately the same
+        const dists = positions.map(p => p.horizDist);
+        const avgDist = dists.reduce((a, b) => a + b) / dists.length;
+        for (const d of dists) {
+            expect(Math.abs(d - avgDist)).toBeLessThan(1.0);
+        }
+
+        // But Y positions should increase with pitch
+        for (let i = 1; i < positions.length; i++) {
+            expect(positions[i].y).toBeGreaterThan(positions[i - 1].y);
+        }
+    });
+
+    it('lookAt target is above birdPos.y (bird body center, not feet)', () => {
+        const camera = makeCamera();
+        const orbit = makeOrbit({ pitch: 0.25 });
+        const birdPos = new THREE.Vector3(0, 10, 0);
+
+        // Converge
+        for (let i = 0; i < 100; i++) {
+            updateCamera(camera, orbit, CAMERA_MODES.ORBIT, birdPos, 0);
+        }
+
+        // Camera should be looking ABOVE birdPos.y (not at it)
+        // We can verify by checking the camera's forward direction Y component:
+        // if lookAt is above birdPos.y, the downward angle is less steep
+        const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+
+        // Forward Y should be negative (looking down) but not too steep
+        expect(forward.y).toBeLessThan(0); // looking down
+        expect(forward.y).toBeGreaterThan(-0.5); // but not steeply (< 30°)
+    });
+
+    it('horizon stays level during rapid horizontal rotation', () => {
+        const camera = makeCamera();
+        const orbit = makeOrbit({ angle: 0, targetAngle: 0 });
+        const birdPos = new THREE.Vector3(0, 10, 0);
+
+        // Converge
+        for (let i = 0; i < 100; i++) {
+            updateCamera(camera, orbit, CAMERA_MODES.ORBIT, birdPos, 0);
+        }
+
+        // Rapidly orbit (simulating fast mouse movement)
+        const steps = 60;
+        const angleStep = (2 * Math.PI) / steps; // full circle in 60 steps (fast)
+
+        for (let i = 0; i < steps; i++) {
+            orbit.targetAngle += angleStep;
+            orbit.angle = orbit.targetAngle; // instant (no smoothing lag for this test)
+            updateCamera(camera, orbit, CAMERA_MODES.ORBIT, birdPos, 0);
+
+            // Camera right vector should be horizontal (Y ≈ 0)
+            const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+            expect(Math.abs(right.y)).toBeLessThan(0.1); // right vector stays horizontal
+        }
+    });
+});
