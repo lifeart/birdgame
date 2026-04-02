@@ -184,15 +184,14 @@ export function updateCamera(
         orbit.targetAngle -= norm;
     }
 
-    // Calculate camera position on orbit sphere
+    // Calculate camera position on cylinder (GTA-style: fixed horizontal distance, variable height)
     const effectiveDistance = orbit.distance + normalizedSpeed * CINEMATIC.SPEED_DISTANCE_FACTOR;
-    const horizontalDist = effectiveDistance * Math.cos(orbit.pitch * Math.PI / 2);
-    const verticalOffset = effectiveDistance * Math.sin(orbit.pitch * Math.PI / 2);
+    const heightOffset = effectiveDistance * orbit.pitch; // pitch 0→0, pitch 0.75→9 units above
 
     // Base camera position (behind bird)
-    let targetX = birdPos.x + Math.sin(orbit.angle) * horizontalDist;
-    let targetY = birdPos.y + verticalOffset + 2;
-    let targetZ = birdPos.z + Math.cos(orbit.angle) * horizontalDist;
+    let targetX = birdPos.x + Math.sin(orbit.angle) * effectiveDistance;
+    let targetY = birdPos.y + heightOffset + 2;
+    let targetZ = birdPos.z + Math.cos(orbit.angle) * effectiveDistance;
 
     // Apply lateral offset (perpendicular to camera direction)
     const perpAngle = orbit.angle + Math.PI / 2;
