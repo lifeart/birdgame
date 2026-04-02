@@ -210,15 +210,10 @@ export function updateCamera(
     camera.position.y += (targetY - camera.position.y) * moveFactor;
     camera.position.z += (targetZ - camera.position.z) * moveFactor;
 
-    // Look at point ahead of bird (dynamic based on speed)
-    const lookAtX = birdPos.x + Math.sin(actualBirdRotation) * orbit.lookAheadOffset;
-    const lookAtY = birdPos.y;
-    const lookAtZ = birdPos.z + Math.cos(actualBirdRotation) * orbit.lookAheadOffset;
-
-    // Always use world up — bank angle is purely cosmetic in follow mode
-    // and tilting the up vector in world space caused flips at certain orbit angles
+    // Always look at the bird's center — offset look-ahead caused geometric roll
+    // accumulation during orbiting (camera rolled 180° over a full circle)
     camera.up.set(0, 1, 0);
-    camera.lookAt(lookAtX, lookAtY, lookAtZ);
+    camera.lookAt(birdPos.x, birdPos.y, birdPos.z);
 }
 
 export function handleCameraKeyInput(
