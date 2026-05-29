@@ -2,6 +2,13 @@
 import * as THREE from 'three';
 import { GRAVITY, AIR_RESISTANCE, ROTATION_DAMPING, type BirdTypeConfig, type BirdInput } from './types.ts';
 
+// Camera-aimed vertical flight tuning (GTA-style "fly where you look")
+// At NEUTRAL_CAMERA_PITCH, holding forward is level flight. Tilting the camera
+// down (higher pitch) makes forward descend; tilting it up makes forward climb.
+const NEUTRAL_CAMERA_PITCH = 0.25;   // FOLLOW-mode default pitch => level forward flight
+const CAMERA_PITCH_TO_SLOPE = 1.6;   // how steeply camera tilt converts to climb/dive slope
+const VERTICAL_AIM_RESPONSE = 0.12;  // how quickly vertical velocity eases toward the aimed path (per 60fps frame)
+
 // Physics state interface
 export interface PhysicsState {
     velocity: THREE.Vector3;
@@ -259,7 +266,8 @@ function updateFlyingVertical(
     state: PhysicsState,
     input: NormalizedInput,
     config: BirdTypeConfig,
-    dt: number
+    dt: number,
+    cameraPitch?: number
 ): void {
     state.isFlapping = input.up > 0;
 
@@ -269,7 +277,8 @@ function updateFlyingVertical(
     // Apply gravity for flying birds (species can tweak weight/floatiness)
     // Reduce gravity by 25% during glide for smoother soaring
     const glideGravityFactor = state.isGliding ? 0.75 : 1;
-    state.velocity.y -= GRAVITY * (config.gravityScale ?? 1) * glideGravityFactor * dt;
+    const gravityThisFrame = GRAVITY * (config.gravityScale ?? 1) * glideGravityFactor * dt;
+    state.velocity.y -= gravityThisFrame;
 
     if (input.up > 0) {
         state.velocity.y += config.liftPower * input.up * dt;
@@ -279,8 +288,25 @@ function updateFlyingVertical(
         state.velocity.y -= config.liftPower * 0.5 * input.down * dt;
     }
 
-    // Glide lift
-    if (state.isGliding) {
+    // Is the player actively steering, without an explicit Up/Down command?
+    const steerInput = Math.max(input.forward, input.backward, input.left, input.right);
+    const steerControlled = steerInput > 0 && input.up === 0 && input.down === 0;
+
+    if (steerControlled) {
+        // Powered flight aimed by the camera ("fly where you look"):
+        // gravity is cancelled so the camera's vertical aim drives the flight path
+        // instead of the bird sagging and nose-diving. Neutral camera => level
+        // flight (fixes the steering nose-dive); camera tilted down => forward
+        // descends toward where you're looking; tilted up => forward climbs.
+        // This matters most on touch, where the joystick only steers horizontally.
+        state.velocity.y += gravityThisFrame; // cancel gravity for this frame
+        const pitch = cameraPitch ?? NEUTRAL_CAMERA_PITCH;
+        const slope = (pitch - NEUTRAL_CAMERA_PITCH) * CAMERA_PITCH_TO_SLOPE; // >0 looking down
+        const commandedVy = -slope * state.horizontalSpeed;
+        const ease = 1 - Math.pow(1 - VERTICAL_AIM_RESPONSE, dt);
+        state.velocity.y += (commandedVy - state.velocity.y) * ease;
+    } else if (state.isGliding) {
+        // Free glide (no steering input): soar gently.
         const glideLift = state.horizontalSpeed * config.glideEfficiency * 0.04 * dt;
         state.velocity.y += glideLift;
     }
@@ -317,7 +343,8 @@ export function updatePhysics(
     state: PhysicsState,
     config: BirdTypeConfig,
     cameraAngle?: number,
-    delta?: number
+    delta?: number,
+    cameraPitch?: number
 ): void {
     // Clamp and normalize delta to 60fps baseline
     // dt=1.0 at 60fps, dt=0.5 at 120fps, dt=2.0 at 30fps
@@ -347,7 +374,7 @@ export function updatePhysics(
     if (config.canFly === false) {
         updatePenguinVertical(state, normalizedInput, config, dt);
     } else {
-        updateFlyingVertical(state, normalizedInput, config, dt);
+        updateFlyingVertical(state, normalizedInput, config, dt, cameraPitch);
     }
 
     // Clamp vertical velocity

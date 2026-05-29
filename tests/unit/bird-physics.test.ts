@@ -101,6 +101,120 @@ describe('bird physics', () => {
         expect(stateWithDelta.position.z).toBeCloseTo(stateWithout.position.z, 10);
     });
 
+    describe('powered flight: steering follows the camera aim, no nose-dive', () => {
+        // Camera-relative (GTA-style) path: cameraAngle provided, as in the real game.
+        const CAMERA_ANGLE = 0;
+        // Camera pitch values (see physics tuning): 0.25 is neutral/level.
+        const PITCH_LEVEL = 0.25;
+        const PITCH_DOWN = 0.65;  // camera tilted down → forward should descend
+        const PITCH_UP = 0.05;    // camera tilted up   → forward should climb
+
+        it('flies level (not sinking) when steering forward with a neutral camera', () => {
+            const cfg = BIRD_TYPES.sparrow;
+            const state = createPhysicsState(cfg);
+            state.position.set(0, 50, 0);
+            state.velocity.set(0, 0, 0);
+
+            // Simulate ~2s of holding the joystick fully forward (no Up button).
+            for (let i = 0; i < 120; i++) {
+                updatePhysics({ forward: 1 }, state, cfg, CAMERA_ANGLE, DELTA_60FPS, PITCH_LEVEL);
+            }
+
+            // The bird should fly level, not dive toward the ground nor balloon upward.
+            expect(state.position.y).toBeGreaterThan(49);
+            expect(state.position.y).toBeLessThan(51);
+            // And it should not be in a dive (which drives the nose-down visual tilt).
+            expect(state.velocity.y).toBeGreaterThan(-0.05);
+        });
+
+        it('flies level when strafing sideways with a neutral camera', () => {
+            const cfg = BIRD_TYPES.sparrow;
+            const state = createPhysicsState(cfg);
+            state.position.set(0, 50, 0);
+            state.velocity.set(0, 0, 0);
+
+            for (let i = 0; i < 120; i++) {
+                updatePhysics({ right: 1 }, state, cfg, CAMERA_ANGLE, DELTA_60FPS, PITCH_LEVEL);
+            }
+
+            expect(state.position.y).toBeGreaterThan(49);
+            expect(state.position.y).toBeLessThan(51);
+        });
+
+        it('descends when the camera is tilted down and steering forward', () => {
+            const cfg = BIRD_TYPES.sparrow;
+            const state = createPhysicsState(cfg);
+            state.position.set(0, 80, 0);
+            state.velocity.set(0, 0, 0);
+
+            for (let i = 0; i < 90; i++) {
+                updatePhysics({ forward: 1 }, state, cfg, CAMERA_ANGLE, DELTA_60FPS, PITCH_DOWN);
+            }
+
+            // Forward flight should follow the downward camera aim into a descent.
+            expect(state.position.y).toBeLessThan(78);
+            expect(state.velocity.y).toBeLessThan(0);
+        });
+
+        it('climbs when the camera is tilted up and steering forward', () => {
+            const cfg = BIRD_TYPES.sparrow;
+            const state = createPhysicsState(cfg);
+            state.position.set(0, 20, 0);
+            state.velocity.set(0, 0, 0);
+
+            for (let i = 0; i < 90; i++) {
+                updatePhysics({ forward: 1 }, state, cfg, CAMERA_ANGLE, DELTA_60FPS, PITCH_UP);
+            }
+
+            // Forward flight should follow the upward camera aim into a climb.
+            expect(state.position.y).toBeGreaterThan(22);
+            expect(state.velocity.y).toBeGreaterThan(0);
+        });
+
+        it('recovers toward level when steering begins mid-dive (neutral camera)', () => {
+            const cfg = BIRD_TYPES.sparrow;
+            const state = createPhysicsState(cfg);
+            state.position.set(0, 50, 0);
+            // Start already diving downward.
+            state.velocity.set(0, -0.4, 0);
+
+            for (let i = 0; i < 120; i++) {
+                updatePhysics({ forward: 1 }, state, cfg, CAMERA_ANGLE, DELTA_60FPS, PITCH_LEVEL);
+            }
+
+            // Downward velocity should have eased back toward level flight.
+            expect(state.velocity.y).toBeGreaterThan(-0.05);
+        });
+
+        it('still sinks under gravity when no input is given', () => {
+            const cfg = BIRD_TYPES.sparrow;
+            const state = createPhysicsState(cfg);
+            state.position.set(0, 50, 0);
+            state.velocity.set(0, 0, 0);
+
+            for (let i = 0; i < 60; i++) {
+                updatePhysics({}, state, cfg, CAMERA_ANGLE, DELTA_60FPS, PITCH_LEVEL);
+            }
+
+            // No steering and no lift → the bird descends (gravity still applies).
+            expect(state.position.y).toBeLessThan(50);
+        });
+
+        it('still descends when Down is held even while steering', () => {
+            const cfg = BIRD_TYPES.sparrow;
+            const state = createPhysicsState(cfg);
+            state.position.set(0, 50, 0);
+            state.velocity.set(0, 0, 0);
+
+            for (let i = 0; i < 60; i++) {
+                updatePhysics({ forward: 1, down: 1 }, state, cfg, CAMERA_ANGLE, DELTA_60FPS, PITCH_LEVEL);
+            }
+
+            // Down deliberately overrides the camera-aimed assist.
+            expect(state.position.y).toBeLessThan(50);
+        });
+    });
+
     describe('delta clamping', () => {
         it('clamps delta > 0.1 to 0.1', () => {
             const cfg = BIRD_TYPES.sparrow;

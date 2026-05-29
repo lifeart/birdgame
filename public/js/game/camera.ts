@@ -60,6 +60,11 @@ export function getCameraWorldAngle(orbit: CameraOrbitState): number {
     return orbit.angle;
 }
 
+// Get camera's vertical aim (pitch) so forward flight can follow where you look
+export function getCameraWorldPitch(orbit: CameraOrbitState): number {
+    return orbit.pitch;
+}
+
 export function cycleCameraMode(
     currentMode: CameraMode,
     orbit: CameraOrbitState

@@ -13,7 +13,7 @@ import type { InputState, CameraOrbitState, MergedInput, OtherPlayer } from './t
 import type { CameraMode } from '../ui/index.ts';
 import { GAME_CONSTANTS } from './types.ts';
 import { getMergedInput } from './input.ts';
-import { updateCamera, handleCameraKeyInput, getCameraWorldAngle } from './camera.ts';
+import { updateCamera, handleCameraKeyInput, getCameraWorldAngle, getCameraWorldPitch } from './camera.ts';
 
 // Context interface for update operations
 export interface UpdateContext {
@@ -73,10 +73,11 @@ export function update(ctx: UpdateContext, delta: number): void {
 
     const mergedInput: MergedInput = getMergedInput(ctx.input, ctx.touchControls);
 
-    // Get camera angle for GTA-style movement
+    // Get camera angle + pitch for GTA-style movement (fly where you look)
     const cameraAngle = getCameraWorldAngle(ctx.cameraOrbit);
+    const cameraPitch = getCameraWorldPitch(ctx.cameraOrbit);
 
-    ctx.playerBird.update(mergedInput, delta, cameraAngle);
+    ctx.playerBird.update(mergedInput, delta, cameraAngle, cameraPitch);
 
     // Clear mouse delta (not used in GTA mode, but kept for compatibility)
     ctx.input.mouseDeltaX = 0;
