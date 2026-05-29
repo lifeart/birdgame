@@ -10,7 +10,7 @@ import {
     type InputHandlerCallbacks,
 } from '../../public/js/game/input.ts';
 import type { InputState, MergedInput } from '../../public/js/game/types.ts';
-import { CAMERA_MODES, type CameraMode } from '../../public/js/ui/touch.ts';
+import { CAMERA_MODES, TouchControls, type CameraMode } from '../../public/js/ui/touch.ts';
 
 // Helper to create a default InputState
 function makeInputState(): InputState {
@@ -395,6 +395,72 @@ describe('getMergedInput', () => {
         expect(merged.down).toBe(0);
         expect(merged.turnRate).toBe(0);
         expect(merged.isTouch).toBe(false);
+    });
+});
+
+describe('TouchControls camera gesture zone', () => {
+    const originalMaxTouchPoints = navigator.maxTouchPoints;
+    const originalInnerWidth = window.innerWidth;
+    const originalInnerHeight = window.innerHeight;
+
+    beforeEach(() => {
+        Object.defineProperty(navigator, 'maxTouchPoints', {
+            value: 5,
+            configurable: true,
+        });
+        Object.defineProperty(window, 'innerWidth', {
+            value: 1000,
+            configurable: true,
+        });
+        Object.defineProperty(window, 'innerHeight', {
+            value: 800,
+            configurable: true,
+        });
+        document.body.innerHTML = '';
+        document.head.innerHTML = '';
+    });
+
+    afterEach(() => {
+        Object.defineProperty(navigator, 'maxTouchPoints', {
+            value: originalMaxTouchPoints,
+            configurable: true,
+        });
+        Object.defineProperty(window, 'innerWidth', {
+            value: originalInnerWidth,
+            configurable: true,
+        });
+        Object.defineProperty(window, 'innerHeight', {
+            value: originalInnerHeight,
+            configurable: true,
+        });
+    });
+
+    it('should treat upper-right open space as camera swipe zone', () => {
+        const canvas = document.createElement('canvas');
+        const controls = new TouchControls({
+            ui: null,
+            paused: false,
+            cycleCameraMode: vi.fn(),
+            resetInput: vi.fn(),
+            renderer: { domElement: canvas },
+            cameraMode: CAMERA_MODES.FOLLOW,
+            cameraOrbit: {
+                targetDistance: 15,
+                minDistance: 5,
+                maxDistance: 50,
+                targetAngle: 0,
+                targetPitch: 0.3,
+                minPitch: -0.5,
+                maxPitch: 1.2,
+            },
+        }, null);
+
+        const touches = [{ identifier: 7, clientX: 820, clientY: 240 }] as unknown as TouchList;
+        const cameraTouches = (controls as any).getCameraZoneTouches(touches, window.innerWidth) as Touch[];
+
+        expect(cameraTouches).toHaveLength(1);
+
+        controls.cleanup();
     });
 });
 

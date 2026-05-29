@@ -11,6 +11,15 @@ export const CAMERA_MODES = {
 
 export type CameraMode = typeof CAMERA_MODES[keyof typeof CAMERA_MODES];
 
+const TOUCH_LAYOUT = {
+    leftZoneWidth: 0.38,
+    rightZoneWidth: 0.26,
+    cameraZoneLeft: 0.28,
+    cameraZoneRight: 0.88,
+    cameraZoneTop: 96,
+    cameraZoneBottom: 0.72
+} as const;
+
 interface JoystickState {
     active: boolean;
     startX: number;
@@ -164,15 +173,18 @@ export class TouchControls {
     }
 
     private createUI(): void {
+        const leftZoneWidth = `${Math.round(TOUCH_LAYOUT.leftZoneWidth * 100)}%`;
+        const rightZoneWidth = `${Math.round(TOUCH_LAYOUT.rightZoneWidth * 100)}%`;
+
         this.container = document.createElement('div');
         this.container.id = 'touch-controls';
         this.container.innerHTML = `
-            <div class="touch-zone touch-zone-left" id="joystick-zone">
+            <div class="touch-zone touch-zone-left" id="joystick-zone" style="width: ${leftZoneWidth};">
                 <div class="joystick" id="joystick">
                     <div class="joystick-knob" id="joystick-knob"></div>
                 </div>
             </div>
-            <div class="touch-zone touch-zone-right" id="button-zone">
+            <div class="touch-zone touch-zone-right" id="button-zone" style="width: ${rightZoneWidth};">
                 <button class="touch-btn touch-btn-up" id="btn-up">
                     <span class="btn-icon">↑</span>
                     <span class="btn-label">UP</span>
@@ -189,7 +201,7 @@ export class TouchControls {
                 <button class="touch-btn-small" id="btn-chat">💬</button>
             </div>
             <div class="touch-hint" id="touch-hint">
-                ← Joystick to move (camera-relative) • Up/Down buttons → • Swipe to orbit camera
+                Left thumb: move • Right side: up/down • Swipe open space to rotate camera
             </div>
         `;
         document.body.appendChild(this.container);
@@ -218,6 +230,10 @@ export class TouchControls {
         const style = document.createElement('style');
         style.textContent = `
             #touch-controls {
+                --touch-joystick-size: clamp(104px, 18vw, 132px);
+                --touch-joystick-knob-size: clamp(42px, 7.6vw, 54px);
+                --touch-main-btn-size: clamp(64px, 11vw, 80px);
+                --touch-small-btn-size: clamp(42px, 7vw, 52px);
                 display: none;
                 position: fixed;
                 top: 0;
@@ -242,39 +258,37 @@ export class TouchControls {
             .touch-zone-left {
                 left: 0;
                 bottom: env(safe-area-inset-bottom, 0);
-                width: 35%;
                 height: 45%;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                padding-left: 10px;
-                padding-bottom: 60px;
+                padding-left: 14px;
+                padding-bottom: 72px;
             }
 
             .touch-zone-right {
                 right: 0;
                 bottom: env(safe-area-inset-bottom, 0);
-                width: 25%;
                 height: 45%;
                 display: flex;
                 flex-direction: column;
                 align-items: center;
                 justify-content: center;
-                gap: 15px;
-                padding-right: 10px;
-                padding-bottom: 20px;
+                gap: 18px;
+                padding-right: 14px;
+                padding-bottom: 28px;
             }
 
             .touch-zone-top {
-                top: 70px;
-                right: 10px;
+                top: max(14px, env(safe-area-inset-top, 0));
+                right: 12px;
                 display: flex;
-                gap: 8px;
+                gap: 10px;
             }
 
             .joystick {
-                width: 100px;
-                height: 100px;
+                width: var(--touch-joystick-size);
+                height: var(--touch-joystick-size);
                 border-radius: 50%;
                 background: rgba(255, 255, 255, 0.08);
                 border: 2px solid rgba(255, 255, 255, 0.15);
@@ -287,8 +301,8 @@ export class TouchControls {
             }
 
             .joystick-knob {
-                width: 42px;
-                height: 42px;
+                width: var(--touch-joystick-knob-size);
+                height: var(--touch-joystick-knob-size);
                 border-radius: 50%;
                 background: rgba(255, 255, 255, 0.25);
                 border: 1px solid rgba(255, 255, 255, 0.4);
@@ -307,13 +321,13 @@ export class TouchControls {
             }
 
             .touch-btn {
-                width: 60px;
-                height: 60px;
+                width: var(--touch-main-btn-size);
+                height: var(--touch-main-btn-size);
                 border-radius: 50%;
                 border: 1px solid rgba(255, 255, 255, 0.2);
                 background: rgba(255, 255, 255, 0.08);
                 color: rgba(255, 255, 255, 0.85);
-                font-size: 12px;
+                font-size: 13px;
                 font-weight: 500;
                 display: flex;
                 flex-direction: column;
@@ -329,14 +343,14 @@ export class TouchControls {
             }
 
             .touch-btn .btn-icon {
-                font-size: 22px;
+                font-size: 24px;
                 line-height: 1;
                 opacity: 0.9;
             }
 
             .touch-btn .btn-label {
-                font-size: 9px;
-                margin-top: 2px;
+                font-size: 10px;
+                margin-top: 3px;
                 opacity: 0.6;
             }
 
@@ -370,13 +384,13 @@ export class TouchControls {
             }
 
             .touch-btn-small {
-                width: 40px;
-                height: 40px;
+                width: var(--touch-small-btn-size);
+                height: var(--touch-small-btn-size);
                 border-radius: 12px;
                 border: 1px solid rgba(255, 255, 255, 0.15);
                 background: rgba(0, 0, 0, 0.25);
                 color: rgba(255, 255, 255, 0.85);
-                font-size: 18px;
+                font-size: 19px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
@@ -394,15 +408,17 @@ export class TouchControls {
 
             .touch-hint {
                 position: absolute;
-                bottom: 20px;
+                bottom: 22px;
                 left: 50%;
                 transform: translateX(-50%);
                 background: rgba(0, 0, 0, 0.5);
                 color: white;
-                padding: 8px 16px;
-                border-radius: 20px;
-                font-size: 11px;
-                white-space: nowrap;
+                padding: 10px 16px;
+                border-radius: 18px;
+                font-size: 12px;
+                text-align: center;
+                white-space: normal;
+                width: min(90vw, 360px);
                 opacity: 0;
                 pointer-events: none;
                 transition: opacity 0.5s ease-out;
@@ -423,82 +439,70 @@ export class TouchControls {
             }
 
             @media (max-width: 400px) {
+                #touch-controls {
+                    --touch-joystick-size: 96px;
+                    --touch-joystick-knob-size: 40px;
+                    --touch-main-btn-size: 58px;
+                    --touch-small-btn-size: 42px;
+                }
+
                 .touch-zone-left {
-                    width: 30%;
-                    padding-bottom: 50px;
+                    padding-bottom: 58px;
                 }
+
                 .touch-zone-right {
-                    width: 22%;
-                    gap: 10px;
+                    gap: 12px;
                 }
-                .joystick {
-                    width: 85px;
-                    height: 85px;
-                }
-                .joystick-knob {
-                    width: 36px;
-                    height: 36px;
-                }
-                .touch-btn {
-                    width: 52px;
-                    height: 52px;
-                    font-size: 11px;
-                }
+
                 .touch-btn .btn-icon {
-                    font-size: 18px;
+                    font-size: 20px;
                 }
+
                 .touch-btn .btn-label {
-                    font-size: 8px;
+                    font-size: 9px;
                 }
-                .touch-btn-small {
-                    width: 35px;
-                    height: 35px;
-                    font-size: 15px;
-                }
+
                 .touch-zone-top {
-                    top: 60px;
                     gap: 6px;
+                }
+
+                .touch-hint {
+                    bottom: 18px;
+                    font-size: 11px;
                 }
             }
 
             @media (max-height: 450px) and (orientation: landscape) {
+                #touch-controls {
+                    --touch-joystick-size: 92px;
+                    --touch-joystick-knob-size: 38px;
+                    --touch-main-btn-size: 54px;
+                    --touch-small-btn-size: 40px;
+                }
+
                 .touch-zone-left {
                     height: 60%;
-                    width: 25%;
-                    padding-bottom: 10px;
+                    padding-bottom: 18px;
                 }
+
                 .touch-zone-right {
                     height: 60%;
-                    width: 18%;
-                    gap: 8px;
-                    padding-bottom: 5px;
+                    gap: 10px;
+                    padding-bottom: 12px;
                 }
-                .joystick {
-                    width: 80px;
-                    height: 80px;
-                }
-                .joystick-knob {
-                    width: 34px;
-                    height: 34px;
-                }
-                .touch-btn {
-                    width: 48px;
-                    height: 48px;
-                }
+
                 .touch-btn .btn-icon {
-                    font-size: 16px;
+                    font-size: 18px;
                 }
+
                 .touch-btn .btn-label {
                     display: none;
                 }
+
                 .touch-zone-top {
-                    top: 5px;
+                    right: 10px;
                 }
-                .touch-btn-small {
-                    width: 32px;
-                    height: 32px;
-                    font-size: 14px;
-                }
+
                 .touch-hint {
                     display: none;
                 }
@@ -913,12 +917,11 @@ export class TouchControls {
         const screenHeight = window.innerHeight;
         for (let i = 0; i < touches.length; i++) {
             const touch = touches[i];
-            // Camera zone: center area (35% to 75% of screen width)
-            // Left zone is 35%, right zone is 25%, leaving 40% center
-            // Exclude touches in the top 130px (UI elements area) and bottom 45% (button zone)
-            // Exclude touches that belong to the joystick
-            const inCameraX = touch.clientX > screenWidth * 0.35 && touch.clientX < screenWidth * 0.75;
-            const inCameraY = touch.clientY > 130 && touch.clientY < screenHeight * 0.55;
+            // Allow camera drags in the center and upper-right open space while avoiding the UI bars.
+            const inCameraX = touch.clientX > screenWidth * TOUCH_LAYOUT.cameraZoneLeft &&
+                touch.clientX < screenWidth * TOUCH_LAYOUT.cameraZoneRight;
+            const inCameraY = touch.clientY > TOUCH_LAYOUT.cameraZoneTop &&
+                touch.clientY < screenHeight * TOUCH_LAYOUT.cameraZoneBottom;
             if (touch.identifier !== this.joystickTouchId && inCameraX && inCameraY) {
                 result.push(touch);
             }
